@@ -6,6 +6,7 @@ HL7 File Monitor - Monitors Directories, used by different APIs to process Files
 
 ## Example Status Log
 Counts files inside directories
+
 ![Status-Log Screenshot](/images/hl7_status_log.png)
 ## Example Error Log
 Outputs file content from .error and .hl7 from ERROR directory
