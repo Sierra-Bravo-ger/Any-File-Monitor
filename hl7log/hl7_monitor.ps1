@@ -3,12 +3,12 @@
 # Es werden Status- und Fehlerprotokolle erstellt, um die Anzahl der HL7-Dateien zu überwachen.
 # Das Skript überprüft die Eingangs-, Archiv- und Fehlerverzeichnisse und erstellt Protokolle für Anzahl Status und Fehler.
 # Konfiguration - Pfade anpassen
-$inputPath   = "C:\Transfer\LIS_Simulator\input"
-$archivPath  = "C:\Transfer\LIS_Simulator\ARCHIV"
-$errorPath   = "C:\Transfer\LIS_Simulator\error"
-$statusLog   = "C:\Transfer\LIS_Simulator\hl7log\hl7_status_log.csv"
-$errorLog    = "C:\Transfer\LIS_Simulator\hl7log\hl7_error_log.csv"
-$seenList    = "C:\Transfer\LIS_Simulator\hl7log\hl7_error_seen.txt"
+$inputPath   = "..\INPUT"
+$archivPath  = "..\ARCHIV"
+$errorPath   = "..\ARCHIV\ERROR"
+$statusLog   = ".\hl7_status_log.csv"
+$errorLog    = ".\hl7_error_log.csv"
+$seenList    = ".\hl7_error_seen.txt"
 
 # Sicherstellen, dass Logdateien existieren
 

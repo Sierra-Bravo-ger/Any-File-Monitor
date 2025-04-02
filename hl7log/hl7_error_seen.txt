@@ -5,3 +5,4 @@ test5.error
 test6.error
 test7.error
 test8.error
+test9.error
