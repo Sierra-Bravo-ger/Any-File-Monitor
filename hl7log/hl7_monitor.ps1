@@ -1,4 +1,4 @@
-# HL7 Monitor Script mit Konfiguration via config.ini und zusätzlichem Log der INPUT-Dateien
+# File Monitor Script mit Konfiguration via config.ini
 
 # INI-Datei einlesen
 $configPath = Join-Path $PSScriptRoot "config.ini"
@@ -29,7 +29,7 @@ if (!(Test-Path $statusLog)) {
     "Zeitpunkt;Input;Archiv;Error" | Out-File -FilePath $statusLog -Encoding UTF8
 }
 if (!(Test-Path $errorLog)) {
-    "Zeitpunkt;ErrorDatei;Fehlermeldung;HL7Datei;HL7Inhalt" | Out-File -FilePath $errorLog -Encoding UTF8
+    "Zeitpunkt;ErrorDatei;Fehlermeldung;EXTDatei;EXTInhalt" | Out-File -FilePath $errorLog -Encoding UTF8
 }
 if (!(Test-Path $seenList)) {
     New-Item $seenList -ItemType File -Force | Out-Null
@@ -45,10 +45,10 @@ $alreadySeen = Get-Content $seenList -ErrorAction SilentlyContinue
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 # Dateien zählen
-$inputFiles = Get-ChildItem $inputPath -Filter *.hl7 -File -ErrorAction SilentlyContinue |
+$inputFiles = Get-ChildItem $inputPath -Filter *.ext -File -ErrorAction SilentlyContinue |
               Where-Object { $_.LastWriteTime -lt (Get-Date).AddMinutes(-1) }
 $inputCount  = $inputFiles.Count
-$archivCount = (Get-ChildItem $archivPath -Filter *.hl7 -File -ErrorAction SilentlyContinue).Count
+$archivCount = (Get-ChildItem $archivPath -Filter *.ext -File -ErrorAction SilentlyContinue).Count
 $errorCount  = (Get-ChildItem $errorPath  -Filter *.error -File -ErrorAction SilentlyContinue).Count
 
 # Statuslog schreiben
@@ -56,7 +56,7 @@ $errorCount  = (Get-ChildItem $errorPath  -Filter *.error -File -ErrorAction Sil
 
 # Detail-Log für INPUT-Dateien schreiben
 foreach ($file in $inputFiles) {
-    "$timestamp;$($file.Name);$($file.CreationTime.ToString("yyyy-MM-dd HH:mm:ss"))" |
+    "$timestamp;$($file.Name);$($file.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"))" |
         Out-File -FilePath $inputDetailLog -Append -Encoding UTF8
 }
 
@@ -71,24 +71,24 @@ foreach ($errFile in $readyErrors) {
     try {
         $errorFilename = $errFile.Name
         $basename = [System.IO.Path]::GetFileNameWithoutExtension($errorFilename)
-        $hl7Filename = "$basename.hl7"
-        $hl7Path = Join-Path $errorPath $hl7Filename
+        $extFilename = "$basename.ext"
+        $extPath = Join-Path $errorPath $extFilename
 
         # .error-Datei lesen
         $errorText = Get-Content $errFile.FullName -ErrorAction Stop | Out-String
         $errorText = $errorText.Trim().Replace("`r`n", " ").Substring(0, [Math]::Min(300, $errorText.Length))
 
-        # zugehörige .hl7-Datei lesen (falls vorhanden)
-        $hl7Text = ""
-        if (Test-Path $hl7Path) {
-            $hl7Text = Get-Content $hl7Path -ErrorAction Stop | Out-String
-            $hl7Text = $hl7Text.Trim().Replace("`r`n", " ").Substring(0, [Math]::Min(300, $hl7Text.Length))
+        # zugehörige .ext-Datei lesen (falls vorhanden)
+        $extText = ""
+        if (Test-Path $extPath) {
+            $extText = Get-Content $extPath -ErrorAction Stop | Out-String
+            $extText = $extText.Trim().Replace("`r`n", " ").Substring(0, [Math]::Min(300, $extText.Length))
         } else {
-            $hl7Text = "[Keine HL7-Datei gefunden]"
+            $extText = "[Keine ext-Datei gefunden]"
         }
 
         # Fehlerlog schreiben
-        "$timestamp;$errorFilename;$errorText;$hl7Filename;$hl7Text" | Out-File -FilePath $errorLog -Append -Encoding UTF8
+        "$timestamp;$errorFilename;$errorText;$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding UTF8
 
         # Gesehen-Liste aktualisieren
         Add-Content $seenList $errorFilename
