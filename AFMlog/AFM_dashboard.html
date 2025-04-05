@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnyFileMonitor Dashboard</title>
+  <!-- Material Design Lite -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+  <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+  <!-- PapaParse für CSV-Parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- Chart.js für Diagramme -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { 
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    .page-content {
+      padding: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .mdl-card {
+      width: 100%;
+      margin-bottom: 24px;
+      overflow: visible;
+    }
+    .mdl-card__title {
+      color: #fff;
+      height: 64px;
+      background-color: #3f51b5;
+    }
+    .mdl-card__title-text {
+      font-size: 20px;
+    }
+    .mdl-data-table {
+      width: 100%;
+    }
+    .summary-card {
+      padding: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .summary-item {
+      text-align: center;
+      padding: 16px;
+      flex: 1;
+    }
+    .summary-value {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #3f51b5;
+    }
+    .summary-label {
+      font-size: 14px;
+      color: #757575;
+    }
+    .chart-container {
+      height: 300px;
+      margin-bottom: 24px;
+    }
+    .refresh-button {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+    }
+    .mdl-spinner {
+      margin: 0 auto;
+      display: block;
+    }
+    .loading {
+      text-align: center;
+      padding: 24px;
+    }
+    .error-card {
+      background-color: #ffebee;
+      border-left: 4px solid #f44336;
+    }
+    .warning-card {
+      background-color: #fff8e1;
+      border-left: 4px solid #ffc107;
+    }
+    .success-card {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4caf50;
+    }
+    #lastUpdate {
+      text-align: right;
+      color: #757575;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+    .mdl-layout__header-row {
+      padding-left: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+    <header class="mdl-layout__header">
+      <div class="mdl-layout__header-row">
+        <span class="mdl-layout-title">AnyFileMonitor Dashboard</span>
+        <div class="mdl-layout-spacer"></div>
+        <nav class="mdl-navigation">
+          <a class="mdl-navigation__link" href="#status">Status</a>
+          <a class="mdl-navigation__link" href="#errors">Fehler</a>
+          <a class="mdl-navigation__link" href="#patterns">Muster</a>
+          <a class="mdl-navigation__link" href="#input">Eingangsdaten</a>
+        </nav>
+      </div>
+    </header>
+    <div class="mdl-layout__drawer">
+      <span class="mdl-layout-title">AFM Dashboard</span>
+      <nav class="mdl-navigation">
+        <a class="mdl-navigation__link" href="#status">Status</a>
+        <a class="mdl-navigation__link" href="#errors">Fehler</a>
+        <a class="mdl-navigation__link" href="#patterns">Muster</a>
+        <a class="mdl-navigation__link" href="#input">Eingangsdaten</a>
+      </nav>
+    </div>
+    <main class="mdl-layout__content">
+      <div class="page-content">
+        <div id="lastUpdate"></div>
+
+        <!-- Zusammenfassung -->
+        <div class="mdl-grid summary-card mdl-shadow--2dp">
+          <div class="summary-item">
+            <div class="summary-value" id="totalFiles">-</div>
+            <div class="summary-label">Dateien gesamt</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value" id="errorCount">-</div>
+            <div class="summary-label">Fehler</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value" id="patternCount">-</div>
+            <div class="summary-label">Muster erkannt</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value" id="lastRunTime">-</div>
+            <div class="summary-label">Letzte Ausführung</div>
+          </div>
+        </div>
+
+        <!-- Status-Diagramm -->
+        <div class="mdl-card mdl-shadow--2dp" id="status">
+          <div class="mdl-card__title">
+            <h2 class="mdl-card__title-text">Status-Verlauf</h2>
+          </div>
+          <div class="mdl-card__supporting-text">
+            <div class="chart-container">
+              <canvas id="statusChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status-Log -->
+        <div class="mdl-card mdl-shadow--2dp">
+          <div class="mdl-card__title">
+            <h2 class="mdl-card__title-text">Status-Log (AFM_status_log.csv)</h2>
+          </div>
+          <div class="mdl-card__supporting-text">
+            <div id="statusTable" class="loading">
+              <div class="mdl-spinner mdl-js-spinner is-active"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fehler-Log -->
+        <div class="mdl-card mdl-shadow--2dp" id="errors">
+          <div class="mdl-card__title">
+            <h2 class="mdl-card__title-text">Fehler-Log (AFM_error_log.csv)</h2>
+          </div>
+          <div class="mdl-card__supporting-text">
+            <div id="errorTable" class="loading">
+              <div class="mdl-spinner mdl-js-spinner is-active"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Muster-Treffer -->
+        <div class="mdl-card mdl-shadow--2dp" id="patterns">
+          <div class="mdl-card__title">
+            <h2 class="mdl-card__title-text">Erkannte Muster (AFM_pattern_matches.csv)</h2>
+          </div>
+          <div class="mdl-card__supporting-text">
+            <div id="patternTable" class="loading">
+              <div class="mdl-spinner mdl-js-spinner is-active"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Eingangsdetails -->
+        <div class="mdl-card mdl-shadow--2dp" id="input">
+          <div class="mdl-card__title">
+            <h2 class="mdl-card__title-text">Eingangsdetails (AFM_input_details.csv)</h2>
+          </div>
+          <div class="mdl-card__supporting-text">
+            <div id="inputTable" class="loading">
+              <div class="mdl-spinner mdl-js-spinner is-active"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Refresh Button -->
+  <button class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored refresh-button" onclick="loadAllData()">
+    <i class="material-icons">refresh</i>
+  </button>
+
+  <script>
+    // Daten laden
+    function loadAllData() {
+      document.getElementById('lastUpdate').textContent = 'Letzte Aktualisierung: ' + new Date().toLocaleString('de-DE');
+      loadCSV('./AFM_status_log.csv', processStatusData);
+      loadCSV('./AFM_error_log.csv', processErrorData);
+      loadCSV('./AFM_pattern_matches.csv', processPatternData);
+      loadCSV('./AFM_input_details.csv', processInputData);
+    }
+
+    function loadCSV(file, callback) {
+      Papa.parse(file, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: callback
+      });
+    }
+
+    // Status-Daten verarbeiten
+    function processStatusData(results) {
+      if (!results.data || results.data.length === 0) {
+        document.getElementById('statusTable').innerHTML = '<p>Keine Status-Daten verfügbar.</p>';
+        return;
+      }
+
+      // Tabelle erstellen
+      renderTable(results.data, 'statusTable');
+
+      // Letzte Ausführung anzeigen
+      const lastRun = results.data[results.data.length - 1];
+      if (lastRun && lastRun.Zeitpunkt) {
+        document.getElementById('lastRunTime').textContent = lastRun.Zeitpunkt.split(' ')[1] || '-';
+      }
+
+      // Chart erstellen
+      const labels = [];
+      const inputData = [];
+      const errorData = [];
+      const archiveData = [];
+
+      // Nur die letzten 20 Einträge für das Diagramm verwenden
+      const chartData = results.data.slice(-20);
+      
+      chartData.forEach(row => {
+        if (row.Zeitpunkt) {
+          // Nur die Uhrzeit für die Beschriftung verwenden
+          const timePart = row.Zeitpunkt.split(' ')[1] || row.Zeitpunkt;
+          labels.push(timePart);
+          
+          // Zahlen aus den Spalten extrahieren
+          inputData.push(parseInt(row['Input'] || 0));
+          errorData.push(parseInt(row['Error'] || 0));
+          archiveData.push(parseInt(row['Archiv'] || 0));
+        }
+      });
+
+      // Chart erstellen
+      const ctx = document.getElementById('statusChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Input',
+              data: inputData,
+              borderColor: 'rgba(54, 162, 235, 1)',
+              backgroundColor: 'rgba(54, 162, 235, 0.2)',
+              tension: 0.1
+            },
+            {
+              label: 'Error',
+              data: errorData,
+              borderColor: 'rgba(255, 99, 132, 1)',
+              backgroundColor: 'rgba(255, 99, 132, 0.2)',
+              tension: 0.1
+            },
+            {
+              label: 'Archiv',
+              data: archiveData,
+              borderColor: 'rgba(75, 192, 192, 1)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+
+      // Gesamtzahl der Dateien berechnen
+      const lastEntry = results.data[results.data.length - 1];
+      if (lastEntry) {
+        const total = (parseInt(lastEntry['Input'] || 0) + 
+                      parseInt(lastEntry['Error'] || 0) + 
+                      parseInt(lastEntry['Archiv'] || 0));
+        document.getElementById('totalFiles').textContent = total;
+      }
+    }
+
+    // Fehler-Daten verarbeiten
+    function processErrorData(results) {
+      if (!results.data || results.data.length === 0) {
+        document.getElementById('errorTable').innerHTML = '<p>Keine Fehler-Daten verfügbar.</p>';
+        return;
+      }
+
+      document.getElementById('errorCount').textContent = results.data.length;
+      renderTable(results.data, 'errorTable', true);
+    }
+
+    // Muster-Daten verarbeiten
+    function processPatternData(results) {
+      if (!results.data || results.data.length === 0) {
+        document.getElementById('patternTable').innerHTML = '<p>Keine Muster-Daten verfügbar.</p>';
+        return;
+      }
+
+      document.getElementById('patternCount').textContent = results.data.length;
+      renderTable(results.data, 'patternTable', true);
+    }
+
+    // Eingangs-Daten verarbeiten
+    function processInputData(results) {
+      if (!results.data || results.data.length === 0) {
+        document.getElementById('inputTable').innerHTML = '<p>Keine Eingangs-Daten verfügbar.</p>';
+        return;
+      }
+
+      renderTable(results.data, 'inputTable');
+    }
+
+    // Tabelle rendern
+    function renderTable(data, containerId, highlightErrors = false) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p>Keine Daten verfügbar.</p>';
+        return;
+      }
+
+      // Tabelle erstellen
+      const table = document.createElement('table');
+      table.className = 'mdl-data-table mdl-js-data-table mdl-shadow--2dp';
+      
+      // Header erstellen
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      
+      // Spaltenüberschriften aus dem ersten Datensatz
+      const headers = Object.keys(data[0]);
+      headers.forEach(header => {
+        const th = document.createElement('th');
+        th.className = 'mdl-data-table__cell--non-numeric';
+        th.textContent = header;
+        headerRow.appendChild(th);
+      });
+      
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      
+      // Tabellenkörper erstellen
+      const tbody = document.createElement('tbody');
+      
+      // Nur die letzten 100 Einträge anzeigen, um die Leistung zu verbessern
+      const displayData = data.length > 100 ? data.slice(-100) : data;
+      
+      displayData.forEach(row => {
+        const tr = document.createElement('tr');
+        
+        // Zeile hervorheben, wenn sie einen Fehler enthält
+        if (highlightErrors && row.Muster) {
+          tr.className = 'error-card';
+        }
+        
+        headers.forEach(header => {
+          const td = document.createElement('td');
+          td.className = 'mdl-data-table__cell--non-numeric';
+          
+          // Text kürzen, wenn er zu lang ist
+          let content = row[header] || '';
+          if (content.length > 100) {
+            content = content.substring(0, 100) + '...';
+          }
+          
+          td.textContent = content;
+          tr.appendChild(td);
+        });
+        
+        tbody.appendChild(tr);
+      });
+      
+      table.appendChild(tbody);
+      container.appendChild(table);
+      
+      // MDL-Komponenten aktualisieren
+      if (typeof componentHandler !== 'undefined') {
+        componentHandler.upgradeElement(table);
+      }
+    }
+
+    // Initial alle Daten laden
+    loadAllData();
+    
+    // Alle 60 Sekunden aktualisieren
+    setInterval(loadAllData, 60000);
+  </script>
+</body>
+</html>
