@@ -231,6 +231,7 @@
       Papa.parse(file, {
         download: true,
         header: true,
+        delimiter: ";", // Semikolon als Trennzeichen festlegen
         skipEmptyLines: true,
         complete: callback
       });
@@ -407,7 +408,15 @@
           
           // Text kürzen, wenn er zu lang ist
           let content = row[header] || '';
-          if (content.length > 100) {
+          
+          // Behandlung für die Dateinamen-Spalte
+          if (header === 'Dateinamen als String' && content.length > 100) {
+            // Anzahl der Dateien ermitteln
+            const fileCount = content.split(',').length;
+            // Nur die ersten 3 Dateien anzeigen
+            const firstFiles = content.split(',').slice(0, 3).join(', ');
+            content = firstFiles + ` ... (${fileCount} Dateien insgesamt)`;
+          } else if (content.length > 100) {
             content = content.substring(0, 100) + '...';
           }
           
