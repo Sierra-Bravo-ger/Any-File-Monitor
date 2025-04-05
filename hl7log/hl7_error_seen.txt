@@ -1,8 +1,0 @@
-test2.error
-test3.error
-test4.error
-test5.error
-test6.error
-test7.error
-test8.error
-test9.error
