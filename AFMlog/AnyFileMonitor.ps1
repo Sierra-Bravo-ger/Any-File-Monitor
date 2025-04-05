@@ -175,10 +175,10 @@ foreach ($extFile in $extFilesForProcessing) {
     
     $basename = [System.IO.Path]::GetFileNameWithoutExtension($extFilename)
     $errorFilename = "$basename.error"
-    $errorPath = Join-Path $errorPath $errorFilename
+    $errorFilePath = Join-Path $errorPath $errorFilename  # Variable umbenannt, um Überschreibung zu vermeiden
     
     # Nur verarbeiten, wenn keine zugehörige .error-Datei existiert
-    if (Test-Path $errorPath) { continue }
+    if (Test-Path $errorFilePath) { continue }
     
     try {
         # .ext-Datei lesen
