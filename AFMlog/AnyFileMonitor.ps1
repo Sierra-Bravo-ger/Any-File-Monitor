@@ -203,7 +203,6 @@ foreach ($otherFile in $otherFilesForProcessing) {
     
     try {
         $filename = $otherFile.Name
-        
         # Datei lesen
         $fileContent = Get-Content $otherFile.FullName -ErrorAction Stop | Out-String
         $fileContent = $fileContent.Trim().Replace("`r`n", " ")
