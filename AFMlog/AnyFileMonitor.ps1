@@ -31,6 +31,21 @@ if ($config.ContainsKey('errorPatterns')) {
     $errorPatterns = ($config['errorPatterns'] -split ',') | ForEach-Object { $_.Trim() }
 }
 
+# E-Mail-Konfiguration aus config.ini laden
+$emailEnabled = $false
+if ($config.ContainsKey('emailEnabled') -and $config['emailEnabled'] -eq 'true') {
+    $emailEnabled = $true
+    $emailSmtpServer = $config['emailSmtpServer']
+    $emailSmtpPort = [int]$config['emailSmtpPort']
+    $emailUseSSL = $config['emailUseSSL'] -eq 'true'
+    $emailFrom = $config['emailFrom']
+    $emailTo = ($config['emailTo'] -split ',') | ForEach-Object { $_.Trim() }
+    $emailSubject = $config['emailSubject']
+    $emailUsername = $config['emailUsername']
+    $emailPassword = $config['emailPassword']
+    $emailMinPatternMatches = [int]$config['emailMinPatternMatches']
+}
+
 # Pfad für das Muster-Log (Treffer der RegEx-Ausdrücke)
 $patternLogPath = Join-Path $PSScriptRoot "AFM_pattern_matches.csv"
 
@@ -188,7 +203,6 @@ foreach ($otherFile in $otherFilesForProcessing) {
     
     try {
         $filename = $otherFile.Name
-        $fileExtension = $otherFile.Extension.ToLower()
         
         # Datei lesen
         $fileContent = Get-Content $otherFile.FullName -ErrorAction Stop | Out-String
@@ -233,6 +247,73 @@ if ($patternMatches.Count -gt 0) {
     
     # Ausgabe der Anzahl gefundener Muster
     Write-Host "Es wurden $($patternMatches.Count) Muster in den Fehlertexten gefunden."
+    
+    # E-Mail senden, wenn aktiviert und genügend Muster gefunden wurden
+    if ($emailEnabled -and $patternMatches.Count -ge $emailMinPatternMatches) {
+        try {
+            # E-Mail-Inhalt erstellen
+            $emailBody = @"
+Hallo,
+
+das AnyFileMonitor-Skript hat $($patternMatches.Count) Muster in den Fehlertexten gefunden.
+
+Details zu den gefundenen Mustern:
+
+"@
+            
+            # Die ersten 10 Muster (oder alle, wenn weniger) in den E-Mail-Text einfügen
+            $maxDetailsToShow = [Math]::Min(10, $patternMatches.Count)
+            for ($i = 0; $i -lt $maxDetailsToShow; $i++) {
+                $match = $patternMatches[$i]
+                $emailBody += @"
+
+Datei: $($match.Datei)
+Muster: $($match.Muster)
+Text: $($match.Text)
+Zeitpunkt: $($match.Zeitpunkt)
+-------------------------------
+"@
+            }
+            
+            if ($patternMatches.Count -gt 10) {
+                $emailBody += @"
+
+... und $(($patternMatches.Count) - 10) weitere Treffer.
+
+"@
+            }
+            
+            $emailBody += @"
+
+Mit freundlichen Grüßen,
+Ihr AnyFileMonitor
+"@
+            
+            # Sichere Anmeldeinformationen erstellen
+            $securePassword = ConvertTo-SecureString $emailPassword -AsPlainText -Force
+            $credentials = New-Object System.Management.Automation.PSCredential ($emailUsername, $securePassword)
+            
+            # E-Mail-Parameter
+            $mailParams = @{
+                SmtpServer = $emailSmtpServer
+                Port = $emailSmtpPort
+                UseSsl = $emailUseSSL
+                From = $emailFrom
+                To = $emailTo
+                Subject = "$emailSubject ($($patternMatches.Count) Muster gefunden)"
+                Body = $emailBody
+                Credential = $credentials
+            }
+            
+            # E-Mail senden
+            Send-MailMessage @mailParams
+            
+            Write-Host "E-Mail mit Fehlerdetails wurde gesendet."
+        }
+        catch {
+            Write-Host "Fehler beim Senden der E-Mail: $_"
+        }
+    }
 }
 
 Write-Host "AFM abgeschlossen."
