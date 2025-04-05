@@ -284,7 +284,7 @@ Zeitpunkt: $($match.Zeitpunkt)
             
             $emailBody += @"
 
-Mit freundlichen Grüßen,
+Mit freundlichen Grueßen,
 Ihr AnyFileMonitor
 "@
             
