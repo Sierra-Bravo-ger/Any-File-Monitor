@@ -30,7 +30,7 @@ if (!(Test-Path $statusLog)) {
     "Zeitpunkt;Input;Archiv;Error" | Out-File -FilePath $statusLog -Encoding UTF8
 }
 if (!(Test-Path $errorLog)) {
-    "Zeitpunkt;ErrorDatei;Fehlermeldung" | Out-File -FilePath $errorLog -Encoding UTF8
+    "Zeitpunkt;ErrorDatei;Fehlermeldung;EXTDatei;EXTInhalt" | Out-File -FilePath $errorLog -Encoding UTF8
 }
 if (!(Test-Path $seenList)) {
     New-Item $seenList -ItemType File -Force | Out-Null
@@ -82,8 +82,22 @@ foreach ($errFile in $errorFilesForProcessing) {
         $errorText = $errorText.Trim().Replace("`r`n", " ")
         if ($errorText.Length -gt 300) { $errorText = $errorText.Substring(0,300) }
 
+        # Zugehörige .ext-Datei suchen und lesen
+        $basename = [System.IO.Path]::GetFileNameWithoutExtension($errorFilename)
+        $extFilename = "$basename.ext"
+        $extPath = Join-Path $errorPath $extFilename
+        $extText = ""
+        
+        if (Test-Path $extPath) {
+            $extText = Get-Content $extPath -ErrorAction Stop | Out-String
+            $extText = $extText.Trim().Replace("`r`n", " ")
+            if ($extText.Length -gt 300) { $extText = $extText.Substring(0,300) }
+        } else {
+            $extText = "[Keine ext-Datei gefunden]"
+        }
+
         # Fehlerlog schreiben
-        "$timestamp;$errorFilename;$errorText" | Out-File -FilePath $errorLog -Append -Encoding UTF8
+        "$timestamp;$errorFilename;$errorText;$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding UTF8
 
         # Gesehen-Liste aktualisieren
         Add-Content $seenList $errorFilename
