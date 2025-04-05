@@ -1,8 +1,14 @@
-# HL7-File-Monitor
+# Any-File-Monitor
 HL7 File Monitor - Monitors Directories, used by different APIs to process Files. Should help with Error tracking and resolving.
 
 ## Example for Folder Structure
-![Error-Log Screenshot](/images/folder_structure.png)
+
+$basedir/
+├─ INPUT/
+├─ ARCHIV/
+│  ├─ ERROR/
+├─ AFMlog/
+
 
 ## Example Status Log
 Counts files inside directories
