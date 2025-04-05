@@ -45,7 +45,7 @@ if (!(Test-Path $seenList)) {
     New-Item $seenList -ItemType File -Force | Out-Null
 }
 if (!(Test-Path $inputDetailLog)) {
-    "Zeitpunkt;Dateiname;Anzahl;Dateien" | Out-File -FilePath $inputDetailLog -Encoding UTF8
+    "Zeitpunkt;Anzahl;Dateinamen als String" | Out-File -FilePath $inputDetailLog -Encoding UTF8
 }
 
 # Vorher gesehene Dateien laden (für Error-Verarbeitung)
@@ -79,11 +79,19 @@ $errorCount = $errorFiles.Count
 
 # Nachträgliche Fehlerverarbeitung (nur für Dateien, die noch nicht gesehen wurden und älter als 1 Minute sind)
 
-# Alle .error und .ext Dateien sammeln
-$errorFilesForProcessing = Get-ChildItem -Path $errorPath -Filter "*.error" -File -ErrorAction SilentlyContinue | 
-                           Where-Object { $_.LastWriteTime -lt (Get-Date).AddMinutes(-1) }
-$extFilesForProcessing = Get-ChildItem -Path $errorPath -Filter "*.ext" -File -ErrorAction SilentlyContinue | 
-                         Where-Object { $_.LastWriteTime -lt (Get-Date).AddMinutes(-1) }
+# Alle Dateien im Error-Ordner sammeln, die den konfigurierten Erweiterungen entsprechen und älter als 1 Minute sind
+$allFilesForProcessing = Get-ChildItem -Path $errorPath -File -ErrorAction SilentlyContinue | 
+                        Where-Object { 
+                            $fileExtensions -contains $_.Extension.ToLower() -and 
+                            $_.LastWriteTime -lt (Get-Date).AddMinutes(-1) 
+                        }
+
+# Dateien nach Typ filtern
+$errorFilesForProcessing = $allFilesForProcessing | Where-Object { $_.Extension.ToLower() -eq ".error" }
+$extFilesForProcessing = $allFilesForProcessing | Where-Object { $_.Extension.ToLower() -eq ".ext" }
+$otherFilesForProcessing = $allFilesForProcessing | Where-Object { 
+    $_.Extension.ToLower() -ne ".error" -and $_.Extension.ToLower() -ne ".ext" 
+}
 
 # Liste für bereits verarbeitete .ext-Dateien
 $processedExtFiles = @()
@@ -171,6 +179,43 @@ foreach ($extFile in $extFilesForProcessing) {
     }
     catch {
         Write-Host "Warnung: Fehler beim Verarbeiten von $($extFile.Name) - $_"
+    }
+}
+
+# Verarbeitung anderer Dateitypen (nicht .error oder .ext)
+foreach ($otherFile in $otherFilesForProcessing) {
+    if ($seen -contains $otherFile.Name) { continue }
+    
+    try {
+        $filename = $otherFile.Name
+        $fileExtension = $otherFile.Extension.ToLower()
+        
+        # Datei lesen
+        $fileContent = Get-Content $otherFile.FullName -ErrorAction Stop | Out-String
+        $fileContent = $fileContent.Trim().Replace("`r`n", " ")
+        if ($fileContent.Length -gt 1500) { $fileContent = $fileContent.Substring(0,1500) }
+        
+        # Fehlerlog schreiben
+        "$timestamp;[Keine error-Datei gefunden];[Kein Fehlertext verfügbar];$filename;$fileContent" | Out-File -FilePath $errorLog -Append -Encoding UTF8
+        
+        # Prüfen, ob der Dateiinhalt einen der konfigurierten RegEx-Ausdrücke enthält
+        foreach ($pattern in $errorPatterns) {
+            if ($fileContent -match $pattern) {
+                $patternMatches += [PSCustomObject]@{
+                    Zeitpunkt = $timestamp
+                    Datei = $filename
+                    Muster = $pattern
+                    Text = $fileContent
+                }
+                break  # Ein Treffer pro Datei reicht
+            }
+        }
+        
+        # Gesehen-Liste aktualisieren
+        Add-Content $seenList $filename
+    }
+    catch {
+        Write-Host "Warnung: Fehler beim Verarbeiten von $($otherFile.Name) - $_"
     }
 }
 
