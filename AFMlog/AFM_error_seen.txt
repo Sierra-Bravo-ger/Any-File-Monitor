@@ -1,5 +1,3 @@
-test1.error
-test10.error
 test100.error
 test101.error
 test102.error
@@ -10,7 +8,6 @@ test106.error
 test107.error
 test108.error
 test109.error
-test11.error
 test110.error
 test111.error
 test112.error
@@ -109,7 +106,6 @@ test196.error
 test197.error
 test198.error
 test199.error
-test2.error
 test20.error
 test200.error
 test21.error
@@ -121,7 +117,6 @@ test26.error
 test27.error
 test28.error
 test29.error
-test3.error
 test30.error
 test31.error
 test32.error
@@ -132,7 +127,6 @@ test36.error
 test37.error
 test38.error
 test39.error
-test4.error
 test40.error
 test41.error
 test42.error
@@ -143,7 +137,6 @@ test46.error
 test47.error
 test48.error
 test49.error
-test5.error
 test50.error
 test51.error
 test52.error
@@ -154,7 +147,6 @@ test56.error
 test57.error
 test58.error
 test59.error
-test6.error
 test60.error
 test61.error
 test62.error
@@ -165,7 +157,6 @@ test66.error
 test67.error
 test68.error
 test69.error
-test7.error
 test70.error
 test71.error
 test72.error
@@ -176,7 +167,6 @@ test76.error
 test77.error
 test78.error
 test79.error
-test8.error
 test80.error
 test81.error
 test82.error
@@ -187,7 +177,6 @@ test86.error
 test87.error
 test88.error
 test89.error
-test9.error
 test90.error
 test91.error
 test92.error
@@ -198,3 +187,14 @@ test96.error
 test97.error
 test98.error
 test99.error
+test1.ext
+test10.ext
+test11.ext
+test2.ext
+test3.ext
+test4.ext
+test5.ext
+test6.ext
+test7.ext
+test8.ext
+test9.ext
