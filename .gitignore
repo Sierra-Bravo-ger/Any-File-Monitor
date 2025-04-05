@@ -7,3 +7,4 @@ AFMlog/AFM_status_log.csv
 AFMlog/AFM_input_details.csv
 AFMlog/AFM_error_seen.txt
 AFMlog/AFM_pattern_matches.csv
+smtp_login.txt
