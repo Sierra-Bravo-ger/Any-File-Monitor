@@ -47,19 +47,19 @@ Ein konfigurierbares Tool zum Überwachen von Dateisystemen, das in verschiedene
 ### Ordnerstruktur
 ```
 LIS_Simulator/
-├── INPUT/               # Überwachtes Eingangsverzeichnis
-├── ARCHIV/              # Archivverzeichnis für verarbeitete Dateien
-│   └── ERROR/           # Verzeichnis für Fehlerdateien
-└── AFMlog/              # AnyFileMonitor Programmverzeichnis
-    ├── AnyFileMonitor.ps1  # Hauptskript
-    ├── config.ini       # Konfigurationsdatei
-    ├── AFM_dashboard.html  # Dashboard
+├── INPUT/                       # Überwachtes Eingangsverzeichnis
+├── ARCHIV/                      # Archivverzeichnis für verarbeitete Dateien
+│   └── ERROR/                   # Verzeichnis für Fehlerdateien
+└── AFMlog/                      # AnyFileMonitor Programmverzeichnis
+    ├── AnyFileMonitor.ps1       # Hauptskript
+    ├── config.ini               # Konfigurationsdatei
+    ├── AFM_dashboard.html       # Dashboard
     ├── start-AFM-Dashboard.ps1  # Webserver für Dashboard
-    ├── libs/            # Lokale Bibliotheken für Dashboard
-    │   ├── css/
-    │   ├── js/  
-    │   └── fonts/
-    └── [Log-Dateien]    # CSV-Dateien mit Überwachungsdaten
+    ├── libs/                    # Lokale Bibliotheken für Dashboard
+    │   ├── css/                 # css
+    │   ├── js/                  # js
+    │   └── fonts/               # fonts
+    └── [Log-Dateien]            # CSV-Dateien mit Überwachungsdaten
 ```
 
 ### Konfiguration
