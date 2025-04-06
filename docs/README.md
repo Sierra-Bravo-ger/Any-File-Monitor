@@ -12,7 +12,7 @@ Das **AnyFileMonitor Dashboard** ist eine HTML5-basierte, interaktive Visualisie
 
 ---
 
-## 📁 Benötigte Dateien (im gleichen Ordner wie `index.html`)
+## 📁 Benötigte Dateien (im gleichen Ordner wie `AFM_dashboard.html`)
 
 - `AFM_status_log.csv` – erfolgreich verarbeitete Dateien
 - `AFM_error_log.csv` – Fehlerhafte Dateien + zugehörige Informationen
@@ -60,7 +60,7 @@ Die clientseitige Verarbeitung und das stateless Design sorgen dafür, dass selb
 
 ## ⚙️ Verwendung (lokal)
 
-1. Stelle sicher, dass alle CSV-Dateien im selben Ordner wie `index.html` liegen
+1. Stelle sicher, dass alle CSV-Dateien im selben Ordner wie `AFM_dashboard.html` liegen
 2. Starte mit lokalem Webserver (z. B. via PowerShell):
 ```powershell
 .\Start-AFM-Dashboard.ps1
