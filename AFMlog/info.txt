@@ -3,7 +3,7 @@ Befehle zum Ausführen:
 powershell -File -ExecutionPolicy Bypass .\AnyFileMonitor.ps1           
 └──Führt Hauptskript aus
 
-powershell -File -ExecutionPolicy Bypass .\start-AFM-Dashboard.ps1      
+powershell -File -ExecutionPolicy Bypass .\start-AFM-Dashboard.ps1 -ExternalAccess -PortNumber 8888
 └──Führt Mini-WebServer mit Dashboard aus
 
 powershell -File -ExecutionPolicy Bypass .\get_libs.ps1                 

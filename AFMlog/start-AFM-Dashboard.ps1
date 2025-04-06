@@ -1,6 +1,12 @@
 # Start-AFM-Dashboard.ps1
 # Startet einen lokalen Webserver für das AFM-Dashboard
 
+# Parameter für den Server
+param(
+    [switch]$ExternalAccess,
+    [int]$PortNumber = 8080
+)
+
 # Funktion zum Finden eines freien Ports
 function Find-FirstFreePort {
     param (
@@ -11,7 +17,7 @@ function Find-FirstFreePort {
     for ($port = $StartPort; $port -le $MaxPort; $port++) {
         $tcpListener = $null
         try {
-            $tcpListener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, $port)
+            $tcpListener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $port)
             $tcpListener.Start()
             return $port
         } catch {
@@ -28,12 +34,12 @@ function Find-FirstFreePort {
 }
 
 # Freien Port suchen oder blockierenden Prozess beenden
-$desiredPort = 8080
-$port = $desiredPort
+$port = $PortNumber
 
 try {
     # Prüfen, ob der gewünschte Port verfügbar ist
-    $tcpTest = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, $port)
+    $ipAddress = if ($ExternalAccess) { [System.Net.IPAddress]::Any } else { [System.Net.IPAddress]::Loopback }
+    $tcpTest = New-Object System.Net.Sockets.TcpListener($ipAddress, $port)
     $tcpTest.Start()
     $tcpTest.Stop()
 } catch {
@@ -61,11 +67,13 @@ namespace SimpleWebServer
         private bool running = false;
         private string rootPath;
         private int port;
+        private bool externalAccess;
 
-        public Server(string rootDirectory, int serverPort)
+        public Server(string rootDirectory, int serverPort, bool allowExternalAccess)
         {
             this.rootPath = rootDirectory;
             this.port = serverPort;
+            this.externalAccess = allowExternalAccess;
         }
 
         public void Start()
@@ -74,11 +82,18 @@ namespace SimpleWebServer
             
             try
             {
-                listener = new TcpListener(IPAddress.Loopback, port);
+                IPAddress bindAddress = externalAccess ? IPAddress.Any : IPAddress.Loopback;
+                listener = new TcpListener(bindAddress, port);
                 listener.Start();
                 running = true;
                 
+                string hostName = Dns.GetHostName();
+                string externalMessage = externalAccess 
+                    ? string.Format("\nExtern erreichbar über: http://{0}:{1}/AFM_dashboard.html", hostName, port)
+                    : "\nNur lokal erreichbar. Für externen Zugriff starten Sie mit: -ExternalAccess";
+                
                 Console.WriteLine("Server gestartet auf http://localhost:{0}/", port);
+                Console.WriteLine(externalMessage);
                 
                 while (running)
                 {
@@ -142,9 +157,16 @@ namespace SimpleWebServer
                     string method = requestParts[0];
                     string rawPath = requestParts[1];
                     
-                    // Weitere Header einlesen (ignorieren wir erstmal)
+                    // Host-Header finden
+                    string hostHeader = "";
                     string line;
-                    while (!string.IsNullOrEmpty(line = reader.ReadLine())) { }
+                    while (!string.IsNullOrEmpty(line = reader.ReadLine())) {
+                        if (line.StartsWith("Host:", StringComparison.OrdinalIgnoreCase)) {
+                            hostHeader = line.Substring(5).Trim();
+                            // Host-Header extrahieren (für Logging)
+                            Console.WriteLine("Host-Header: " + hostHeader);
+                        }
+                    }
                     
                     // Pfad dekodieren und normalisieren
                     string path = Uri.UnescapeDataString(rawPath).TrimStart('/');
@@ -162,7 +184,7 @@ namespace SimpleWebServer
                         writer.WriteLine();
                         writer.WriteLine("<html><body><h1>404 - Datei nicht gefunden: " + path + "</h1></body></html>");
                         writer.Flush();
-                        Console.WriteLine("404: " + path);
+                        Console.WriteLine("404: " + path + " (Host: " + hostHeader + ")");
                         return;
                     }
                     
@@ -201,7 +223,7 @@ namespace SimpleWebServer
                     stream.Write(fileData, 0, fileData.Length);
                     stream.Flush();
                     
-                    Console.WriteLine("200: " + path + " (" + fileData.Length + " Bytes)");
+                    Console.WriteLine("200: " + path + " (Host: " + hostHeader + ", " + fileData.Length + " Bytes)");
                 }
                 catch (Exception ex)
                 {
@@ -230,17 +252,37 @@ namespace SimpleWebServer
 "@ -ReferencedAssemblies System.dll
 
 Write-Host "AFM-Dashboard wird gestartet..."
-Write-Host "Dashboard verfuegbar unter: http://localhost:$port/AFM_dashboard.html" -ForegroundColor Green
+
+# Zugriffstyp anzeigen
+$accessType = if ($ExternalAccess) { "extern" } else { "nur lokal" }
+$hostname = [System.Net.Dns]::GetHostName()
+$ipAddresses = [System.Net.Dns]::GetHostAddresses($hostname) | Where-Object { $_.AddressFamily -eq 'InterNetwork' } | ForEach-Object { $_.IPAddressToString }
+
+Write-Host "Zugriffstyp: $accessType"
+if ($ExternalAccess -and $ipAddresses) {
+    Write-Host "Dashboard ist erreichbar unter:" -ForegroundColor Green
+    Write-Host "  http://localhost:$port/AFM_dashboard.html (lokal)" -ForegroundColor Green
+    foreach ($ip in $ipAddresses) {
+        Write-Host "  http://$ip`:$port/AFM_dashboard.html (Netzwerk)" -ForegroundColor Green
+    }
+    Write-Host "  http://afmdemo.madmoench.de:$port/AFM_dashboard.html (mit korrektem DNS-Eintrag)" -ForegroundColor Green
+    Write-Host "`nHinweis: Der Server akzeptiert Anfragen unabhängig vom Host-Header." -ForegroundColor Cyan
+    Write-Host "Für HTTPS-Unterstützung verwenden Sie bitte einen externen Reverse Proxy." -ForegroundColor Cyan
+} else {
+    Write-Host "Dashboard verfügbar unter: http://localhost:$port/AFM_dashboard.html" -ForegroundColor Green
+    Write-Host "Für EXTERNEN Zugriff starten Sie mit: .\start-AFM-Dashboard.ps1 -ExternalAccess" -ForegroundColor Yellow
+}
+
 Write-Host "Drücken Sie Strg+C zum Beenden" -ForegroundColor Yellow
 
 # Browser öffnen
 Start-Process "http://localhost:$port/AFM_dashboard.html"
 
 # Server-Instanz erstellen und starten
-$server = New-Object SimpleWebServer.Server -ArgumentList $root, $port
+$server = New-Object SimpleWebServer.Server -ArgumentList $root, $port, $ExternalAccess
 
 try {
-    Write-Host "Server laeuft... (Drücken Sie STRG+C zum Beenden)"
+    Write-Host "Server läuft... (Drücken Sie STRG+C zum Beenden)"
     
     # Server direkt im Hauptthread starten
     $server.Start()
