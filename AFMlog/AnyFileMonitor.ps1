@@ -76,7 +76,21 @@ $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $inputFiles = Get-ChildItem -Path $inputPath -File -ErrorAction SilentlyContinue | 
               Where-Object { $fileExtensions -contains $_.Extension.ToLower() }
 $inputCount = $inputFiles.Count
-$inputFileNames = ($inputFiles | Select-Object -ExpandProperty Name) -join ','
+
+# Optimierung: Nur die ersten 5 Dateien für die CSV-Datei verwenden
+$inputFileNamesForLog = ""
+if ($inputCount -gt 0) {
+    # Begrenzen auf maximal 5 Dateien, um CSV-Größe zu reduzieren
+    $samplesToShow = [Math]::Min(5, $inputCount)
+    $filenameSamples = $inputFiles | Select-Object -First $samplesToShow | Select-Object -ExpandProperty Name
+    
+    if ($inputCount -le $samplesToShow) {
+        $inputFileNamesForLog = $filenameSamples -join ','
+    } else {
+        # Bei mehr als 5 Dateien werden nur Beispiele angezeigt
+        $inputFileNamesForLog = ($filenameSamples -join ',') + "... (und $($inputCount - $samplesToShow) weitere)"
+    }
+}
 
 # ARCHIV-Ordner: Dateien zählen
 $archivFiles = Get-ChildItem -Path $archivPath -File -ErrorAction SilentlyContinue
@@ -90,7 +104,7 @@ $errorCount = $errorFiles.Count
 "$timestamp;$inputCount;$archivCount;$errorCount" | Out-File -Append -FilePath $statusLog -Encoding UTF8
 
 # Input-Detail-Log aktualisieren
-"$timestamp;$inputCount;$inputFileNames" | Out-File -Append -FilePath $inputDetailLog -Encoding UTF8
+"$timestamp;$inputCount;$inputFileNamesForLog" | Out-File -Append -FilePath $inputDetailLog -Encoding UTF8
 
 # Nachträgliche Fehlerverarbeitung (nur für Dateien, die noch nicht gesehen wurden und älter als 1 Minute sind)
 
