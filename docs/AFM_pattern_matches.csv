@@ -1,0 +1,42 @@
+﻿Zeitpunkt;Datei;Muster;Text
+2025-04-06 08:54:50;test2005.error;multiple Rows;multiple Rows in singleton select
+2025-04-06 08:54:50;test2006.error;multiple Rows;multiple Rows in singleton select
+2025-04-06 08:54:50;test2007.error;deadlock;deadlock
+2025-04-06 08:54:50;test2008.error;deadlock;deadlock
+2025-04-06 08:54:50;test2009.error;lock conflict;lock conflict on no wait transaction
+2025-04-06 08:54:50;test2010.error;lock conflict;lock conflict on no wait transaction
+2025-04-06 08:54:50;test2011.error;Timeout;Timeout
+2025-04-06 08:54:50;test2012.error;Timeout;Timeout
+2025-04-06 08:54:50;test2013.error;Verbindung vom peer;Verbindung vom peer zurÃ¼ckgesetzt
+2025-04-06 08:54:50;test2014.error;Verbindung vom peer;Verbindung vom peer zurÃ¼ckgesetzt
+2025-04-06 12:30:02;test2021.error;lock conflict;lock conflict on no wait transaction
+2025-04-06 12:30:02;test2022.error;lock conflict;lock conflict on no wait transaction
+2025-04-06 13:15:02;test2024.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2025.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2026.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2027.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2028.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2029.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2030.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2031.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2032.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2033.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2034.error;nicht definiert;nicht definiert
+2025-04-06 14:10:02;test2035.error;nicht definiert;nicht definiert
+2025-04-06 14:18:16;test2046.error;Timeout;Timeout
+2025-04-06 14:18:16;test2047.error;Timeout;Timeout
+2025-04-06 14:18:16;test2048.error;Timeout;Timeout
+2025-04-06 14:18:16;test2049.error;Timeout;Timeout
+2025-04-06 14:18:16;test2050.error;Timeout;Timeout
+2025-04-06 15:25:02;test2501.error;Verbindung vom peer;Verbindung vom peer zurÃ¼ckgesetzt
+2025-04-06 15:25:02;test2502.error;Verbindung vom peer;Verbindung vom peer zurÃ¼ckgesetzt
+2025-04-06 15:35:02;test2541.error;Timeout;Timeout
+2025-04-06 15:35:02;test2542.error;Timeout;Timeout
+2025-04-06 15:35:02;test2543.error;Timeout;Timeout
+2025-04-06 15:35:02;test2544.error;Timeout;Timeout
+2025-04-06 15:35:02;test2545.error;Timeout;Timeout
+2025-04-06 15:35:02;test2546.error;lock conflict;lock conflict
+2025-04-06 15:35:02;test2547.error;lock conflict;lock conflict
+2025-04-06 15:35:02;test2548.error;lock conflict;lock conflict
+2025-04-06 15:35:02;test2549.error;lock conflict;lock conflict
+2025-04-06 15:35:02;test2550.error;lock conflict;lock conflict
