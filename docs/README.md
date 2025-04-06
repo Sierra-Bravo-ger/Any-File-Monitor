@@ -53,4 +53,4 @@ Das Dashboard **funktioniert nicht direkt per `file:///`-Aufruf in Firefox/Chrom
 
 ## 📄 Lizenz
 
-Das Dashboard ist Teil des AFM-Projekts und steht unter der MIT-Lizenz.
+Dieses Projekt ist für die interne Verwendung bestimmt und unterliegt keiner spezifischen Open-Source-Lizenz.
