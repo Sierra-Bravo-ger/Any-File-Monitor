@@ -288,32 +288,26 @@
 
         <!-- Filter für Zeitraum -->
         <div class="filter-container mdl-shadow--2dp" style="padding: 16px; background-color: white;">
-          <div class="filter-item">
-            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-              <input class="mdl-textfield__input" type="date" id="startDate">
-              <label class="mdl-textfield__label" for="startDate">Startdatum</label>
-            </div>
-            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" style="margin-left: 8px;">
-              <input class="mdl-textfield__input" type="time" id="startTime">
-              <label class="mdl-textfield__label" for="startTime">Startzeit</label>
+          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px;">
+            <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: #757575;">Startdatum und -zeit</label>
+            <div style="display: flex; align-items: center;">
+              <input class="mdl-textfield__input" type="date" id="startDate" style="margin-right: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              <input class="mdl-textfield__input" type="time" id="startTime" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             </div>
           </div>
-          <div class="filter-item">
-            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-              <input class="mdl-textfield__input" type="date" id="endDate">
-              <label class="mdl-textfield__label" for="endDate">Enddatum</label>
-            </div>
-            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" style="margin-left: 8px;">
-              <input class="mdl-textfield__input" type="time" id="endTime">
-              <label class="mdl-textfield__label" for="endTime">Endzeit</label>
+          
+          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px;">
+            <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: #757575;">Enddatum und -zeit</label>
+            <div style="display: flex; align-items: center;">
+              <input class="mdl-textfield__input" type="date" id="endDate" style="margin-right: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              <input class="mdl-textfield__input" type="time" id="endTime" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             </div>
           </div>
-          <div class="filter-item">
-            <button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored" onclick="applyDateFilter()">
+          
+          <div class="filter-item" style="display: flex; align-items: flex-end; margin: 8px;">
+            <button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored" onclick="applyDateFilter()" style="margin-right: 8px;">
               Filter anwenden
             </button>
-          </div>
-          <div class="filter-item">
             <button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" onclick="resetDateFilter()">
               Filter zurücksetzen
             </button>
