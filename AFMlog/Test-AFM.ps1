@@ -1,31 +1,76 @@
 # Test-AFM.ps1
-# Vollständiges Testskript für AnyFileMonitor
+# Vereinfachtes Testskript für AnyFileMonitor
+# -----------------------------------------------------------------------------
+# BESCHREIBUNG:
+#   Dieses Skript erstellt Testdateien für den AnyFileMonitor und kann optional
+#   das Dashboard starten. Es unterstützt verschiedene Parameter, um die Anzahl
+#   und Art der zu erstellenden Testdateien sowie die Zielverzeichnisse zu
+#   konfigurieren.
+#
+# PARAMETER:
+#   -ExtFileCount [int]    : Anzahl der zu erstellenden .ext Dateien (Standard: 10)
+#                            Bei Wert 0 werden keine .ext Dateien erstellt
+#
+#   -ErrorFileCount [int]  : Anzahl der zu erstellenden .error Dateien (Standard: 10)
+#                            Bei Wert 0 werden keine .error Dateien erstellt
+#
+#   -I                     : Dateien nur im INPUT-Verzeichnis erstellen
+#   -A                     : Dateien nur im ARCHIV-Verzeichnis erstellen
+#   -E                     : Dateien nur im ARCHIV\error-Verzeichnis erstellen
+#                            (Wenn keiner dieser Schalter angegeben wird, werden
+#                            Dateien in allen Verzeichnissen erstellt)
+#
+#   -SkipDashboardTest     : Den Dashboard-Test überspringen
+#   -SkipCleanup           : Nach dem Test die erstellten Dateien nicht löschen
+#
+# BEISPIELE:
+#   .\Test-AFM.ps1                               # Standard-Ausführung (alle Verzeichnisse, je 10 Dateien)
+#   .\Test-AFM.ps1 -I                            # Nur INPUT-Verzeichnis, je 10 Dateien
+#   .\Test-AFM.ps1 -A -E                         # Nur ARCHIV und ERROR-Verzeichnis, je 10 Dateien
+#   .\Test-AFM.ps1 -ExtFileCount 20              # 20 .ext Dateien, 10 .error Dateien
+#   .\Test-AFM.ps1 -ErrorFileCount 0             # 10 .ext Dateien, keine .error Dateien
+#   .\Test-AFM.ps1 -I -ExtFileCount 5            # Nur 5 .ext Dateien im INPUT
+#   .\Test-AFM.ps1 -SkipDashboardTest            # Ohne Dashboard-Test
+#   .\Test-AFM.ps1 -SkipCleanup                  # Testdateien nach Ausführung nicht löschen
+#   .\Test-AFM.ps1 -I -ExtFileCount 5 -SkipDashboardTest -SkipCleanup  # Kombination mehrerer Parameter
+# -----------------------------------------------------------------------------
 
 # Parameter
 param (
+    [int]$ExtFileCount = 10,
+    [int]$ErrorFileCount = 10,
     [switch]$SkipDashboardTest,
     [switch]$SkipCleanup,
-    [switch]$GenerateReport
+    [switch]$I,  # Nur Input-Verzeichnis
+    [switch]$A,  # Nur Archiv-Verzeichnis
+    [switch]$E   # Nur Error-Verzeichnis
 )
 
 $ErrorActionPreference = "Continue"
 
 # Verzeichnisse und Dateipfade
-$afmPath = "C:\Transfer\LIS_Simulator\AFMlog\AnyFileMonitor.ps1"
-$testDirs = @(
+$afmPath = ".\AnyFileMonitor.ps1"
+$dashboardPath = ".\start-AFM-Dashboard.ps1"
+$allDirs = @(
     "..\INPUT",
     "..\ARCHIV",
     "..\ARCHIV\error"
 )
-$logFiles = @(
-    ".\AFM_status_log.csv",
-    ".\AFM_error_log.csv",
-    ".\AFM_pattern_matches.csv",
-    ".\AFM_error_seen.txt",
-    ".\AFM_input_details.csv"
-)
 
-# Hilfsfunktionen
+# Bestimme die zu nutzenden Verzeichnisse basierend auf den Parametern
+$testDirs = @()
+
+if ($I -or $A -or $E) {
+    # Wenn mindestens ein Verzeichnis-Parameter angegeben wurde, nur die spezifizierten verwenden
+    if ($I) { $testDirs += $allDirs[0] } # Input-Verzeichnis
+    if ($A) { $testDirs += $allDirs[1] } # Archiv-Verzeichnis
+    if ($E) { $testDirs += $allDirs[2] } # Error-Verzeichnis
+} else {
+    # Wenn keine Verzeichnis-Parameter angegeben wurden, alle Verzeichnisse verwenden
+    $testDirs = $allDirs
+}
+
+# Prüfen und erstellen der Testverzeichnisse
 function Initialize-Environment {
     Write-Host "=== Testumgebung wird vorbereitet ===" -ForegroundColor Cyan
     
@@ -38,150 +83,53 @@ function Initialize-Environment {
         Write-Host "Verzeichnis bereit: $dir" -ForegroundColor Gray
     }
     
-    # Log-Dateien nicht löschen, nur Inhalte anzeigen
-    foreach ($file in $logFiles) {
-        if (Test-Path $file) {
-            Write-Host "Log-Datei existiert: $file" -ForegroundColor Gray
-        } else {
-            Write-Host "Log-Datei wird beim Test erstellt: $file" -ForegroundColor Gray
-        }
-    }
-    
     Write-Host "Testumgebung bereit." -ForegroundColor Green
 }
 
-function Test-NormalFiles {
-    Write-Host "`n=== Test: Normale Betriebsbedingungen ===" -ForegroundColor Cyan
+# Erstellen der Testdateien
+function New-TestFiles {
+    Write-Host "`n=== Testdateien werden erstellt ===" -ForegroundColor Cyan
     
-    # Normaldateien erstellen
-    1..50 | ForEach-Object { 
-        Set-Content -Path "..\input\test$_.ext" -Value "Dies ist normaler Inhalt für Datei $_" 
+    # .ext Dateien erstellen (im INPUT-Verzeichnis)
+    if ($testDirs -contains $allDirs[0] -and $ExtFileCount -gt 0) {
+        Write-Host "Erstelle $ExtFileCount .ext Dateien in $($allDirs[0])..." -ForegroundColor Gray
+        1..$ExtFileCount | ForEach-Object { 
+            $ext = ".ext"
+            $content = "H|@^\\|ODM-IdfDGIWA-36|||GeneXpert PC^GeneXpert^4.8|||||LIS||P|1394-97|20070521100245`nP|1`nO|1|SID-$_||^^^TestId-12|S|20070812140500|||||A||||ORH||||||||||Q`nO|2|SID-$_||^^^TestId-14|S|20070812140600|||||A||||ORH||||||||||Q`nO|3|SID-$_||^^^TestId-16|S|20070812140700|||||A||||ORH||||||||||Q`nL|1|F"
+            Set-Content -Path "$($allDirs[0])\test$_$ext" -Value $content
+        }
+    } elseif ($testDirs -contains $allDirs[0] -and $ExtFileCount -eq 0) {
+        Write-Host "Keine .ext Dateien werden in $($allDirs[0]) erstellt (ExtFileCount = 0)" -ForegroundColor Yellow
     }
-    Write-Host "50 normale Testdateien erstellt" -ForegroundColor Gray
     
-    # AFM ausführen
-    & $afmPath
+    # .error Dateien erstellen (für ARCHIV\error)
+    if ($testDirs -contains $allDirs[2] -and $ErrorFileCount -gt 0) {
+        Write-Host "Erstelle $ErrorFileCount .error Dateien im $($allDirs[2])..." -ForegroundColor Gray
+        1..$ErrorFileCount | ForEach-Object { 
+            $ext = ".error"
+            $content = "$_ lock conflict"
+            Set-Content -Path "$($allDirs[2])\test$_$ext" -Value $content
+        }
+    } elseif ($testDirs -contains $allDirs[2] -and $ErrorFileCount -eq 0) {
+        Write-Host "Keine .error Dateien werden in $($allDirs[2]) erstellt (ErrorFileCount = 0)" -ForegroundColor Yellow
+    }
     
-    # Status überprüfen
-    $inputCount = (Get-ChildItem "..\input" -Filter *.ext -File).Count
-    $archivCount = (Get-ChildItem "..\archiv" -Filter *.ext -File).Count
-    $errorCount = (Get-ChildItem "..\archiv\error" -Filter *.error -File).Count
+    # Kopien der .ext Dateien für ARCHIV erstellen
+    if ($testDirs -contains $allDirs[1] -and $ExtFileCount -gt 0) {
+        Write-Host "Erstelle $ExtFileCount .ext Dateien in $($allDirs[1])..." -ForegroundColor Gray
+        1..$ExtFileCount | ForEach-Object { 
+            $ext = ".ext"
+            $content = "H|@^\\|ODM-IdfDGIWA-36|||GeneXpert PC^GeneXpert^4.8|||||LIS||P|1394-97|20070521100245`nP|1`nO|1|SID-$_||^^^TestId-12|S|20070812140500|||||A||||ORH||||||||||Q`nO|2|SID-$_||^^^TestId-14|S|20070812140600|||||A||||ORH||||||||||Q`nO|3|SID-$_||^^^TestId-16|S|20070812140700|||||A||||ORH||||||||||Q`nL|1|F"
+            Set-Content -Path "$($allDirs[1])\test$_$ext" -Value $content
+        }
+    } elseif ($testDirs -contains $allDirs[1] -and $ExtFileCount -eq 0) {
+        Write-Host "Keine .ext Dateien werden in $($allDirs[1]) erstellt (ExtFileCount = 0)" -ForegroundColor Yellow
+    }
     
-    Write-Host "Status nach normalem Testlauf:" -ForegroundColor Green
-    Write-Host "Input: $inputCount, Archiv: $archivCount, Error: $errorCount"
+    Write-Host "Alle Testdateien wurden erstellt." -ForegroundColor Green
 }
 
-function Test-ErrorFiles {
-    Write-Host "`n=== Test: Fehlerhafte Dateien ===" -ForegroundColor Cyan
-    
-    # Fehlerhafte Dateien erstellen
-    1..20 | ForEach-Object { 
-        $content = "Dies ist Testinhalt für Datei $_ Timeout" 
-        Set-Content -Path "..\input\timeout$_.ext" -Value $content
-    }
-    
-    21..40 | ForEach-Object { 
-        $content = "Dies ist Testinhalt für Datei $_ multiple rows in singleton select" 
-        Set-Content -Path "..\input\multirows$_.ext" -Value $content
-    }
-    Write-Host "40 fehlerhafte Testdateien erstellt" -ForegroundColor Gray
-    
-    # AFM ausführen
-    & $afmPath
-    
-    # Fehlerprüfung wenn Log-Dateien existieren
-    if (Test-Path "C:\Transfer\LIS_Simulator\AFMlog\AFM_pattern_matches.csv") {
-        $patternData = Import-Csv "C:\Transfer\LIS_Simulator\AFMlog\AFM_pattern_matches.csv" -Delimiter ";"
-        $patterns = $patternData | Group-Object -Property Muster | Select-Object Name, Count
-        
-        Write-Host "Fehlerverteilung:" -ForegroundColor Yellow
-        $patterns | Format-Table -AutoSize
-    } else {
-        Write-Host "Keine Pattern-Matches-Datei gefunden" -ForegroundColor Yellow
-    }
-}
-
-function Test-FileTypes {
-    Write-Host "`n=== Test: Gemischte Dateitypen ===" -ForegroundColor Cyan
-    
-    # HL7-Dateien
-    1..10 | ForEach-Object { 
-        $hl7Content = "MSH|^~\&|SENDING_APP|SENDING_FACILITY|RECEIVING_APP|RECEIVING_FACILITY|$(Get-Date -Format 'yyyyMMddHHmmss')||ADT^A01|MSG$_|P|2.3"
-        Set-Content -Path "..\input\message$_.ext" -Value $hl7Content
-    }
-    
-    # DAT-Dateien
-    11..20 | ForEach-Object { 
-        Set-Content -Path "..\input\data$_.dat" -Value "Daten für Datei $_" 
-    }
-    
-    # TXT-Dateien
-    21..30 | ForEach-Object { 
-        Set-Content -Path "..\input\text$_.txt" -Value "Text für Datei $_" 
-    }
-    Write-Host "30 gemischte Dateitypen erstellt" -ForegroundColor Gray
-    
-    # AFM ausführen
-    & $afmPath
-    
-    # Status überprüfen
-    $hl7Count = (Get-ChildItem "..\input" -Filter *.hl7 -File).Count
-    $datCount = (Get-ChildItem "..\input" -Filter *.dat -File).Count
-    $txtCount = (Get-ChildItem "..\input" -Filter *.txt -File).Count
-    
-    Write-Host "Status nach gemischtem Testlauf:" -ForegroundColor Magenta
-    Write-Host "HL7: $hl7Count, DAT: $datCount, TXT: $txtCount"
-}
-
-function Test-LoadPerformance {
-    Write-Host "`n=== Test: Lasttest ===" -ForegroundColor Cyan
-    
-    # Viele Dateien erstellen
-    1..200 | ForEach-Object { 
-        Set-Content -Path "..\input\load$_.ext" -Value "Lasttest Inhalt $_" 
-    }
-    Write-Host "200 Dateien für Lasttest erstellt" -ForegroundColor Gray
-    
-    # AFM ausführen und Zeit messen
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    & $afmPath
-    $sw.Stop()
-    $elapsedTime = $sw.Elapsed.TotalSeconds
-    
-    Write-Host "Lasttest abgeschlossen in $elapsedTime Sekunden" -ForegroundColor Green
-    Write-Host "Verarbeitungsrate: $(200 / $elapsedTime) Dateien/Sekunde" -ForegroundColor Green
-}
-
-function Test-EdgeCases {
-    Write-Host "`n=== Test: Edge Cases ===" -ForegroundColor Cyan
-    
-    # Spezielle Testfälle
-    Set-Content -Path "..\input\empty.ext" -Value ""
-    Set-Content -Path "..\input\special_chars.ext" -Value "äöüß!@#$%^&*()_+-=[]{}|;':,./<>?"
-    
-    # Große Datei (nur 1MB, um nicht zu viel Speicher zu belegen)
-    $largeContent = "X" * (1MB)
-    Set-Content -Path "..\input\large.ext" -Value $largeContent -Encoding UTF8
-    
-    Write-Host "Edge Case Testdateien erstellt" -ForegroundColor Gray
-    
-    # AFM ausführen
-    & $afmPath
-    
-    # Überprüfen der Verarbeitung
-    if (Test-Path "..\input\empty.ext") {
-        Write-Host "Leere Datei wurde nicht verarbeitet" -ForegroundColor Yellow
-    } else {
-        Write-Host "Leere Datei wurde verarbeitet" -ForegroundColor Green
-    }
-    
-    if (Test-Path "..\input\large.ext") {
-        Write-Host "Große Datei wurde nicht verarbeitet" -ForegroundColor Yellow
-    } else {
-        Write-Host "Große Datei wurde verarbeitet" -ForegroundColor Green
-    }
-}
-
+# Dashboard-Test mit start-AFM-Dashboard.ps1
 function Test-Dashboard {
     if ($SkipDashboardTest) {
         Write-Host "`n=== Dashboard-Test übersprungen ===" -ForegroundColor Yellow
@@ -190,122 +138,46 @@ function Test-Dashboard {
     
     Write-Host "`n=== Test: Dashboard ===" -ForegroundColor Cyan
     
-    $dashboardPath = "C:\Transfer\LIS_Simulator\AFMlog\AFM_dashboard.html"
     if (Test-Path $dashboardPath) {
-        Start-Process $dashboardPath
-        Write-Host "Dashboard wurde im Browser geöffnet." -ForegroundColor Green
-        Write-Host "Prüfen Sie, ob alle Daten korrekt angezeigt werden."
-        Read-Host "Drücken Sie Enter, um fortzufahren..."
-    } else {
-        Write-Host "Dashboard-Datei nicht gefunden: $dashboardPath" -ForegroundColor Red
-    }
-}
-
-function New-Report {
-    if (-not $NewReport) {
-        return
-    }
-    
-    Write-Host "`n=== Testbericht wird erstellt ===" -ForegroundColor Cyan
-    
-    $reportPath = "C:\Transfer\LIS_Simulator\TestReport_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
-    
-    # Daten sammeln (wenn vorhanden)
-    $statusData = @()
-    # Removed unused variable $errorData
-    $patternData = @()
-    
-    if (Test-Path "C:\Transfer\LIS_Simulator\AFMlog\AFM_status_log.csv") {
-        $statusData = Import-Csv "C:\Transfer\LIS_Simulator\AFMlog\AFM_status_log.csv" -Delimiter ";"
-    }
-    
-    if (Test-Path "C:\Transfer\LIS_Simulator\AFMlog\AFM_error_log.csv") {
-        Write-Host "Error log file exists but is not used in this script." -ForegroundColor Gray
-    }
-    
-    if (Test-Path "C:\Transfer\LIS_Simulator\AFMlog\AFM_pattern_matches.csv") {
-        $patternData = Import-Csv "C:\Transfer\LIS_Simulator\AFMlog\AFM_pattern_matches.csv" -Delimiter ";"
-    }
-    
-    $lastStatus = $statusData | Select-Object -Last 1
-    # $errorCount variable removed as it was not used
-    $patternCount = ($patternData | Measure-Object).Count
-    
-    # Fehlertypen gruppieren
-    $errorsByType = @{}
-    foreach ($entry in $patternData) {
-        if (!$errorsByType.ContainsKey($entry.Muster)) {
-            $errorsByType[$entry.Muster] = 0
+        try {
+            # Starte den Webserver in einem separaten PowerShell-Prozess
+            Write-Host "Starte Dashboard-Webserver..." -ForegroundColor Cyan
+            $job = Start-Job -FilePath $dashboardPath
+            
+            # Warte kurz, damit der Server starten kann
+            Start-Sleep -Seconds 3
+            
+            # Überprüfe, ob der Job noch läuft
+            if ($job.State -eq 'Running') {
+                Write-Host "Dashboard-Webserver erfolgreich gestartet." -ForegroundColor Green
+                Write-Host "Bitte prüfen Sie, ob das Dashboard im Browser angezeigt wird."
+                
+                Read-Host "Drücken Sie Enter, um den Dashboard-Test zu beenden und fortzufahren..."
+                
+                # Job beenden
+                Stop-Job -Job $job
+                Remove-Job -Job $job -Force
+                Write-Host "Dashboard-Webserver gestoppt." -ForegroundColor Green
+            } else {
+                Write-Host "Der Dashboard-Webserver konnte nicht ordnungsgemäß gestartet werden." -ForegroundColor Red
+                Write-Host "Job-Status: $($job.State)" -ForegroundColor Red
+                
+                # Job-Fehler anzeigen, wenn vorhanden
+                if ($job.State -eq 'Failed') {
+                    Receive-Job -Job $job
+                }
+                Remove-Job -Job $job -Force
+            }
         }
-        $errorsByType[$entry.Muster]++
+        catch {
+            Write-Host "Fehler beim Starten des Dashboard-Webservers: $_" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "Dashboard-Skript nicht gefunden: $dashboardPath" -ForegroundColor Red
     }
-    
-    $errorTypesHtml = $errorsByType.GetEnumerator() | ForEach-Object {
-        "<tr><td>$($_.Key)</td><td>$($_.Value)</td></tr>"
-    } | Out-String
-    
-    # Input/Archiv/Error-Werte
-    $inputValue = if ($lastStatus) { $lastStatus.Input } else { "N/A" }
-    $archivValue = if ($lastStatus) { $lastStatus.Archiv } else { "N/A" }
-    $errorValue = if ($lastStatus) { $lastStatus.Error } else { "N/A" }
-    
-    # HTML-Report erstellen
-    $html = @"
-<!DOCTYPE html>
-<html>
-<head>
-    <title>AnyFileMonitor - Test Report</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1, h2 { color: #3f51b5; }
-        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #3f51b5; color: white; }
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        .success { color: green; }
-        .warning { color: orange; }
-        .error { color: red; }
-    </style>
-</head>
-<body>
-    <h1>AnyFileMonitor - Testbericht</h1>
-    <p>Erstellt am $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')</p>
-    
-    <h2>Zusammenfassung</h2>
-    <table>
-        <tr><th>Metrik</th><th>Wert</th></tr>
-        <tr><td>Input-Dateien</td><td>$inputValue</td></tr>
-        <tr><td>Archivierte Dateien</td><td>$archivValue</td></tr>
-        <tr><td>Fehler</td><td>$errorValue</td></tr>
-        <tr><td>Erkannte Muster</td><td>$patternCount</td></tr>
-    </table>
-    
-    <h2>Fehlertypen</h2>
-    <table>
-        <tr><th>Muster</th><th>Anzahl</th></tr>
-        $errorTypesHtml
-    </table>
-    
-    <h2>Testschritte</h2>
-    <table>
-        <tr><th>Schritt</th><th>Status</th></tr>
-        <tr><td>Normale Dateien</td><td class="success">Erfolgreich</td></tr>
-        <tr><td>Fehlerhafte Dateien</td><td class="success">Erfolgreich</td></tr>
-        <tr><td>Verschiedene Dateitypen</td><td class="success">Erfolgreich</td></tr>
-        <tr><td>Lasttest</td><td class="success">Erfolgreich</td></tr>
-        <tr><td>Edge Cases</td><td class="success">Erfolgreich</td></tr>
-    </table>
-    
-    <p>Ende des Testberichts</p>
-</body>
-</html>
-"@
-
-    $html | Out-File -FilePath $reportPath -Encoding utf8
-    Write-Host "Testreport erstellt: $reportPath" -ForegroundColor Green
-    Start-Process $reportPath
 }
 
+# Aufräumen der Testumgebung (optional)
 function Remove-Environment {
     if ($SkipCleanup) {
         Write-Host "`n=== Aufräumen übersprungen ===" -ForegroundColor Yellow
@@ -326,19 +198,31 @@ function Remove-Environment {
 
 # Hauptausführung
 try {
-    Write-Host "AnyFileMonitor - Testskript" -ForegroundColor Cyan
+    Write-Host "AnyFileMonitor - Vereinfachtes Testskript" -ForegroundColor Cyan
+    
+    # Ausgewählte Verzeichnisse anzeigen
+    $dirInfo = if ($testDirs.Count -eq $allDirs.Count) {
+        "Alle Verzeichnisse (INPUT, ARCHIV, ERROR)"
+    } else {
+        ($testDirs -join ", ").Replace("..\", "")
+    }
+    Write-Host "Ausgewählte Verzeichnisse: $dirInfo" -ForegroundColor Cyan
+    Write-Host "Erstelle $ExtFileCount .ext Dateien und $ErrorFileCount .error Dateien" -ForegroundColor Cyan
     
     Initialize-Environment
-    Test-NormalFiles
-    Test-ErrorFiles
-    Test-FileTypes
-    Test-LoadPerformance
-    Test-EdgeCases
+    New-TestFiles
     Test-Dashboard
-    Generate-Report
-    Remove-TestEnvironment
     
-    Write-Host "`nAlle Tests abgeschlossen." -ForegroundColor Green
+    Write-Host "`nAllgemeine Informationen:" -ForegroundColor Green
+    Write-Host "- Anzahl der Dateien anpassen: -ExtFileCount N und -ErrorFileCount N" -ForegroundColor Gray
+    Write-Host "- Bestimmte Verzeichnisse auswählen: -I (INPUT), -A (ARCHIV), -E (ERROR)" -ForegroundColor Gray
+    Write-Host "- Dashboard-Test überspringen: -SkipDashboardTest" -ForegroundColor Gray
+    Write-Host "- Testdateien beibehalten: -SkipCleanup" -ForegroundColor Gray
+    
+    # Aufräumen (wenn nicht übersprungen)
+    Remove-Environment
+    
+    Write-Host "`nTest abgeschlossen." -ForegroundColor Green
 } catch {
     Write-Host "Ein Fehler ist aufgetreten: $_" -ForegroundColor Red
     Write-Host $_.ScriptStackTrace -ForegroundColor Red
