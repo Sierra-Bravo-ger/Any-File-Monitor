@@ -70,10 +70,10 @@ try {
             Write-Host "Processing file $($file.Name) (waiting $delay seconds)"
             Start-Sleep -Seconds $delay
             
-            # Every 20-30 files, move to ERROR directory and create .error file
-            $errorThreshold = Get-Random -Minimum 20 -Maximum 31
+            # Zufällige Entscheidung, ob ein Fehler generiert werden soll (ca. 5% Fehlerrate)
+            $generateError = (Get-Random -Minimum 1 -Maximum 101) -le 5
             
-            if ($fileCounter % $errorThreshold -eq 0) {
+            if ($generateError) {
                 # Move file to ERROR directory
                 $targetPath = Join-Path $errorPath $file.Name
                 Move-Item -Path $file.FullName -Destination $targetPath -Force
