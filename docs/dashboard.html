@@ -1474,10 +1474,10 @@
         errorsByType[pattern]++;
       });
       
-      // Nach Anzahl sortieren und die Top 5 nehmen
+      // Nach Anzahl sortieren und die Top 10 nehmen (vorher waren es 5)
       const sortedErrors = Object.entries(errorsByType)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+        .slice(0, 10);
       
       // HTML für die Liste erstellen
       const html = sortedErrors.map((error, index) => {
