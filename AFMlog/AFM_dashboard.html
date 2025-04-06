@@ -335,30 +335,96 @@
           <div class="mdl-grid summary-card mdl-shadow--2dp">
             <div class="summary-item">
               <div class="summary-value" id="totalFiles">-</div>
-              <div class="summary-label">Dateien gesamt</div>
+              <div class="summary-label">
+                Dateien gesamt
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Gesamtanzahl aller verarbeiteten Dateien (Input + Archiv + Fehler)</span>
+                </span>
+              </div>
             </div>
             <div class="summary-item">
               <div class="summary-value" id="errorCount">-</div>
-              <div class="summary-label">Fehler</div>
+              <div class="summary-label">
+                Fehler
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Anzahl der aufgetretenen Fehler im ausgewählten Zeitraum</span>
+                </span>
+              </div>
             </div>
             <div class="summary-item">
               <div class="summary-value" id="patternCount">-</div>
-              <div class="summary-label">Muster erkannt</div>
+              <div class="summary-label">
+                Muster erkannt
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Anzahl der Fehler, die einem bekannten Muster zugeordnet werden konnten</span>
+                </span>
+              </div>
             </div>
             <div class="summary-item">
               <div class="summary-value" id="errorRate">-</div>
-              <div class="summary-label">Fehlerrate</div>
+              <div class="summary-label">
+                Fehlerrate
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Prozentualer Anteil der Fehler an der Gesamtzahl der Dateien</span>
+                </span>
+              </div>
             </div>
             <div class="summary-item">
               <div class="summary-value" id="lastRunTime">-</div>
-              <div class="summary-label">Letzte Ausführung</div>
+              <div class="summary-label">
+                Letzte Ausführung
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Zeitpunkt der letzten Ausführung des AnyFileMonitors</span>
+                </span>
+              </div>
             </div>
             <div class="summary-item">
               <div class="summary-value" id="systemStatus">
                 <span class="status-indicator status-good" id="statusIndicator"></span>
                 <span id="statusText">Gut</span>
               </div>
-              <div class="summary-label">Systemstatus</div>
+              <div class="summary-label">
+                Systemstatus
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Aktueller Zustand des Systems basierend auf der Fehlerrate (Gut: <5%, Warnung: 5-10%, Kritisch: >10%)</span>
+                </span>
+              </div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="inputFiles">-</div>
+              <div class="summary-label">
+                Input-Dateien
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Anzahl der Dateien, die aktuell im Input-Verzeichnis liegen</span>
+                </span>
+              </div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="archiveFiles">-</div>
+              <div class="summary-label">
+                Archiv-Dateien
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Anzahl der Dateien, die erfolgreich verarbeitet und archiviert wurden</span>
+                </span>
+              </div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="errorFiles">-</div>
+              <div class="summary-label">
+                Fehler-Dateien
+                <span class="tooltip">
+                  <i class="material-icons info-icon">info_outline</i>
+                  <span class="tooltiptext">Anzahl der Dateien, die nicht verarbeitet werden konnten und im Fehler-Verzeichnis liegen</span>
+                </span>
+              </div>
             </div>
           </div>
 
@@ -870,6 +936,12 @@
         document.getElementById('lastRunTime').textContent = lastRun.Zeitpunkt.split(' ')[1] || '-';
       }
 
+      // Aktuelle Werte für Archiv- und Fehler-Dateien aus dem letzten Eintrag extrahieren
+      if (lastRun) {
+        document.getElementById('archiveFiles').textContent = lastRun['Archiv'] || '0';
+        document.getElementById('errorFiles').textContent = lastRun['Error'] || '0';
+      }
+
       // Daten für die Charts vorbereiten
       const labels = [];
       const inputData = [];
@@ -1075,6 +1147,13 @@
       }
 
       renderTable(results.data, 'inputTable');
+      document.getElementById('inputFiles').textContent = results.data.length;
+      
+      // Aktualisiere den Input-Files-Count in der Übersicht mit dem letzten Wert
+      if (results.data.length > 0) {
+        const latestInputData = results.data[results.data.length - 1];
+        document.getElementById('inputFiles').textContent = latestInputData['Anzahl'];
+      }
     }
 
     // KPIs berechnen
@@ -1135,33 +1214,39 @@
     function createErrorTrendChart() {
       if (filteredPatternData.length === 0) return;
       
-      // Daten nach Stunde und Muster gruppieren (statt nach Datum)
-      const errorTypesByHour = {};
+      // Daten nach 15-Minuten-Intervall und Muster gruppieren (statt nach Stunde)
+      const errorTypesByInterval = {};
       const errorTypes = new Set();
       
       filteredPatternData.forEach(entry => {
         if (!entry.Zeitpunkt) return;
         
-        // Zeitpunkt zerlegen, um Stunde zu extrahieren
+        // Zeitpunkt zerlegen, um Stunde und Minute zu extrahieren
         const [datePart, timePart] = entry.Zeitpunkt.split(' ');
-        const hour = timePart.split(':')[0];
-        const formattedDateTime = `${datePart} ${hour}:00`; // Gruppierung nach Stunden
+        const [hour, minute] = timePart.split(':');
+        
+        // Minute auf das nächste 15-Minuten-Intervall abrunden
+        const intervalMinute = Math.floor(parseInt(minute) / 15) * 15;
+        const formattedMinute = intervalMinute.toString().padStart(2, '0');
+        
+        // Formatierter Zeitstempel für 15-Minuten-Intervalle
+        const formattedDateTime = `${datePart} ${hour}:${formattedMinute}`;
         const pattern = entry.Muster;
         
-        if (!errorTypesByHour[formattedDateTime]) {
-          errorTypesByHour[formattedDateTime] = {};
+        if (!errorTypesByInterval[formattedDateTime]) {
+          errorTypesByInterval[formattedDateTime] = {};
         }
         
-        if (!errorTypesByHour[formattedDateTime][pattern]) {
-          errorTypesByHour[formattedDateTime][pattern] = 0;
+        if (!errorTypesByInterval[formattedDateTime][pattern]) {
+          errorTypesByInterval[formattedDateTime][pattern] = 0;
         }
         
-        errorTypesByHour[formattedDateTime][pattern]++;
+        errorTypesByInterval[formattedDateTime][pattern]++;
         errorTypes.add(pattern);
       });
       
       // Daten für Chart.js vorbereiten
-      const labels = Object.keys(errorTypesByHour).sort();
+      const labels = Object.keys(errorTypesByInterval).sort();
       const datasets = [];
       
       // Farben für verschiedene Fehlertypen
@@ -1176,7 +1261,7 @@
       
       // Ein Dataset pro Fehlertyp erstellen
       Array.from(errorTypes).forEach((type, index) => {
-        const data = labels.map(hourTime => errorTypesByHour[hourTime][type] || 0);
+        const data = labels.map(interval => errorTypesByInterval[interval][type] || 0);
         
         datasets.push({
           label: type,
@@ -1213,7 +1298,7 @@
             x: {
               title: {
                 display: true,
-                text: 'Datum und Stunde'
+                text: 'Datum und Zeit (15-Min-Intervall)'
               },
               ticks: {
                 maxRotation: 45,
