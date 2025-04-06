@@ -841,8 +841,9 @@
                       parseInt(lastEntry['Archiv'] || 0));
         document.getElementById('totalFiles').textContent = total;
         
-        // Fehlerrate berechnen
-        const errorCount = parseInt(lastEntry['Error'] || 0);
+        // Fehlerrate berechnen - KORRIGIERT
+        // Berechnung für korrekte Fehlerrate (Fehler / Gesamtdateien * 100)
+        const errorCount = filteredErrorData.length;
         const errorRate = total > 0 ? ((errorCount / total) * 100).toFixed(1) + '%' : '0%';
         document.getElementById('errorRate').textContent = errorRate;
         
@@ -915,10 +916,10 @@
       const throughputPerHour = Math.round(totalFiles / filteredStatusData.length);
       document.getElementById('throughput').textContent = throughputPerHour;
       
-      // Archiv-zu-Fehler-Verhältnis
+      // Fehler-zu-Archiv-Verhältnis (umgekehrt im Vergleich zur vorherigen Berechnung)
       const archiveCount = parseInt(lastEntry['Archiv'] || 0);
       const errorCount = parseInt(lastEntry['Error'] || 0);
-      let ratio = errorCount > 0 ? (archiveCount / errorCount).toFixed(1) : '∞';
+      let ratio = archiveCount > 0 ? ((errorCount / archiveCount) * 100).toFixed(1) + '%' : '∞';
       document.getElementById('archiveToErrorRatio').textContent = ratio;
       
       // MTBF (Mean Time Between Failures)
@@ -938,10 +939,20 @@
       const mtbf = totalErrors > 0 ? (totalHours / totalErrors).toFixed(1) + 'h' : '∞';
       document.getElementById('mtbf').textContent = mtbf;
       
-      // Muster-Erkennungsrate
+      // Muster-Erkennungsrate - Korrigiert
+      // Direkter Vergleich zwischen erkannten Mustern und Fehlern
+      const actualErrorCount = filteredErrorData.length;
       const patternMatchCount = filteredPatternData.length;
-      const patternRecognitionRate = errorCount > 0 ? 
-        Math.min(100, Math.round((patternMatchCount / errorCount) * 100)) + '%' : '0%';
+      
+      // Wenn Muster und Fehler identisch sind (beide > 0), dann 100%
+      // Sonst das tatsächliche Verhältnis
+      let patternRecognitionRate;
+      if (actualErrorCount > 0) {
+        patternRecognitionRate = Math.min(100, Math.round((patternMatchCount / actualErrorCount) * 100)) + '%';
+      } else {
+        patternRecognitionRate = '0%';
+      }
+      
       document.getElementById('patternRecognitionRate').textContent = patternRecognitionRate;
     }
 

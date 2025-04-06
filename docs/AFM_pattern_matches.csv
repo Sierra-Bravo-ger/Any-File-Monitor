@@ -9,3 +9,5 @@
 2025-04-06 08:54:50;test2012.error;Timeout;Timeout
 2025-04-06 08:54:50;test2013.error;Verbindung vom peer;Verbindung vom peer zurÃ¼ckgesetzt
 2025-04-06 08:54:50;test2014.error;Verbindung vom peer;Verbindung vom peer zurÃ¼ckgesetzt
+2025-04-06 12:30:02;test2021.error;lock conflict;lock conflict on no wait transaction
+2025-04-06 12:30:02;test2022.error;lock conflict;lock conflict on no wait transaction
