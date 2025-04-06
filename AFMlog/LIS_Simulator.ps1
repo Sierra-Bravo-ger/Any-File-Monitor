@@ -56,6 +56,8 @@ Write-Host "Press Ctrl+C to stop the simulation"
 Write-Host ""
 
 $fileCounter = 0
+$errorCounter = 0
+$nextErrorAfter = Get-Random -Minimum 20 -Maximum 31
 
 try {
     while ($true) {
@@ -70,10 +72,11 @@ try {
             Write-Host "Processing file $($file.Name) (waiting $delay seconds)"
             Start-Sleep -Seconds $delay
             
-            # Zufällige Entscheidung, ob ein Fehler generiert werden soll (ca. 5% Fehlerrate)
-            $generateError = (Get-Random -Minimum 1 -Maximum 101) -le 5
+            # Erhöhen Sie den Fehlerzähler und prüfen Sie, ob ein Fehler generiert werden soll
+            $errorCounter++
+            Write-Host "Files processed: $fileCounter, Next error after: $nextErrorAfter files, Current count: $errorCounter" -ForegroundColor Cyan
             
-            if ($generateError) {
+            if ($errorCounter -ge $nextErrorAfter) {
                 # Move file to ERROR directory
                 $targetPath = Join-Path $errorPath $file.Name
                 Move-Item -Path $file.FullName -Destination $targetPath -Force
@@ -84,6 +87,10 @@ try {
                 Set-Content -Path $errorFilePath -Value $errorContent
                 
                 Write-Host "ERROR: File $($file.Name) moved to error directory. Error: $errorContent" -ForegroundColor Red
+                
+                # Zurücksetzen des Fehlerzählers und Generieren eines neuen Schwellenwerts
+                $errorCounter = 0
+                $nextErrorAfter = Get-Random -Minimum 20 -Maximum 31
             } else {
                 # Normal case - move to archive
                 $targetPath = Join-Path $archivPath $file.Name
