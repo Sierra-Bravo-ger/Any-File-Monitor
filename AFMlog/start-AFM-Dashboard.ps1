@@ -23,6 +23,15 @@ try {
         if ($path -eq "") { $path = "AFM_dashboard.html" }
         $localPath = Join-Path $root ($path -replace '/', '\')
 
+        # Zusätzliche Überprüfung für Bibliotheken
+        if ($path.StartsWith("libs/")) {
+        # Pfad enthält Bibliotheken, fügen Sie sicher den korrekten lokalen Pfad zusammen
+        $localPath = Join-Path $root ($path -replace '/', '\')
+        } else {
+        # Standardverarbeitung für andere Pfade
+        $localPath = Join-Path $root ($path -replace '/', '\')
+        }
+        
         if (-not (Test-Path $localPath)) {
             $response.StatusCode = 404
             $writer = New-Object IO.StreamWriter $response.OutputStream
