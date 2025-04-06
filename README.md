@@ -19,6 +19,7 @@ Ein konfigurierbares Tool zum Überwachen von Dateisystemen, das in verschiedene
 - Vermeidet Doppelverarbeitung durch Tracking bereits gesehener Fehler
 
 ### 3. Dashboards und Visualisierung
+- [Dashboard Readme](https://github.com/Sierra-Bravo-ger/Any-File-Monitor/blob/main/docs/README.md)
 - Interaktives HTML/JavaScript-Dashboard zur Überwachung in Echtzeit
 - Grafische Darstellung von Fehlerraten, Mustererkennungen und Systemgesundheit
 - Zeitbasierte Filterung zur gezielten Analyse bestimmter Zeiträume
