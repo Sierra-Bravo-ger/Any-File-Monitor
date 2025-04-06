@@ -109,7 +109,23 @@
       margin-bottom: 16px;
     }
     .mdl-layout__header-row {
-      padding-left: 40px;
+      padding-left: 16px;
+      display: flex;
+      justify-content: center; /* Zentrierung der Inhalte */
+    }
+    .mdl-layout-title {
+      font-size: 20px;
+      font-weight: bold;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%); /* Perfekte horizontale Zentrierung */
+    }
+    .mdl-layout-spacer {
+      flex-grow: 0; /* Verhindert, dass der Spacer den Titel verschiebt */
+    }
+    .mdl-navigation {
+      position: absolute;
+      right: 16px; /* Navigation rechts fixieren */
     }
     .mdl-grid {
       padding: 0;
@@ -256,7 +272,7 @@
       </div>
     </header>
     <div class="mdl-layout__drawer">
-      <span class="mdl-layout-title">AFM Dashboard</span>
+      <span class="mdl-layout-title"> </span>
       <nav class="mdl-navigation">
         <a class="mdl-navigation__link" href="#overview" onclick="showTab('overview')">Übersicht</a>
         <a class="mdl-navigation__link" href="#status" onclick="showTab('status')">Status</a>
