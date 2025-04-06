@@ -18,11 +18,11 @@ $testDirs = @(
     "..\ARCHIV\error"
 )
 $logFiles = @(
-    "C:\Transfer\LIS_Simulator\AFMlog\AFM_status_log.csv",
-    "C:\Transfer\LIS_Simulator\AFMlog\AFM_error_log.csv",
-    "C:\Transfer\LIS_Simulator\AFMlog\AFM_pattern_matches.csv",
-    "C:\Transfer\LIS_Simulator\AFMlog\AFM_error_seen.txt",
-    "C:\Transfer\LIS_Simulator\AFMlog\AFM_input_details.csv"
+    ".\AFM_status_log.csv",
+    ".\AFM_error_log.csv",
+    ".\AFM_pattern_matches.csv",
+    ".\AFM_error_seen.txt",
+    ".\AFM_input_details.csv"
 )
 
 # Hilfsfunktionen
