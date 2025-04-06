@@ -67,8 +67,8 @@ try {
         foreach ($file in $files) {
             $fileCounter++
             
-            # Random delay between 5-20 seconds
-            $delay = Get-Random -Minimum 5 -Maximum 21
+            # Random delay between 5-10 seconds
+            $delay = Get-Random -Minimum 5 -Maximum 11
             Write-Host "Processing file $($file.Name) (waiting $delay seconds)"
             Start-Sleep -Seconds $delay
             
