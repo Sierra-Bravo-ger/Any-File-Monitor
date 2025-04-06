@@ -456,14 +456,36 @@
 
         <!-- Status Tab -->
         <div id="status" class="tab-container">
-          <!-- Status-Diagramm -->
+          <!-- Status-Diagramme - Aufgeteilt in drei separate Diagramme -->
           <div class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
-              <h2 class="mdl-card__title-text">Status-Verlauf</h2>
+              <h2 class="mdl-card__title-text">Input-Verlauf</h2>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
-                <canvas id="statusChart"></canvas>
+                <canvas id="inputChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Archiv-Verlauf</h2>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="archiveChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Error-Verlauf</h2>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorChart"></canvas>
               </div>
             </div>
           </div>
@@ -620,13 +642,20 @@
       document.getElementById('startDate').value = yesterdayFormatted;
       document.getElementById('endDate').value = todayFormatted;
       
-      // Filter-Variablen setzen
-      startDateFilter = yesterday;
-      endDateFilter = new Date(today);
-      endDateFilter.setHours(23, 59, 59, 999); // Ende des Tages
+      // Uhrzeitwerte setzen (00:00 für Start, 23:59 für Ende)
+      document.getElementById('startTime').value = '00:00';
+      document.getElementById('endTime').value = '23:59';
       
-      // Filter anwenden
+      // Filter-Variablen setzen
+      startDateFilter = new Date(yesterday);
+      startDateFilter.setHours(0, 0, 0, 0); // Beginn des Tages (00:00:00)
+      
+      endDateFilter = new Date(today);
+      endDateFilter.setHours(23, 59, 59, 999); // Ende des Tages (23:59:59)
+      
+      // Filter automatisch anwenden, ohne Klick auf den Button zu erfordern
       applyFilters();
+      processAllData();
     }
 
     // Tab-Steuerung
@@ -754,31 +783,32 @@
       });
     }
 
-    // Daten laden
+    // Hauptfunktion zum Laden aller Daten anpassen
     function loadAllData() {
       document.getElementById('lastUpdate').textContent = 'Letzte Aktualisierung: ' + new Date().toLocaleString('de-DE');
-      loadCSV('./AFM_status_log.csv', function(results) {
-        allStatusData = results.data || [];
-        filteredStatusData = filterDataByDate(allStatusData);
-        processStatusData({ data: filteredStatusData });
-      });
       
-      loadCSV('./AFM_error_log.csv', function(results) {
-        allErrorData = results.data || [];
-        filteredErrorData = filterDataByDate(allErrorData);
-        processErrorData({ data: filteredErrorData });
-      });
-      
-      loadCSV('./AFM_pattern_matches.csv', function(results) {
-        allPatternData = results.data || [];
-        filteredPatternData = filterDataByDate(allPatternData);
-        processPatternData({ data: filteredPatternData });
-      });
-      
-      loadCSV('./AFM_input_details.csv', function(results) {
-        allInputData = results.data || [];
-        filteredInputData = filterDataByDate(allInputData);
-        processInputData({ data: filteredInputData });
+      // Promise-basierte Verarbeitung der Daten
+      Promise.all([
+        new Promise(resolve => loadCSV('./AFM_status_log.csv', results => {
+          allStatusData = results.data || [];
+          resolve();
+        })),
+        new Promise(resolve => loadCSV('./AFM_error_log.csv', results => {
+          allErrorData = results.data || [];
+          resolve();
+        })),
+        new Promise(resolve => loadCSV('./AFM_pattern_matches.csv', results => {
+          allPatternData = results.data || [];
+          resolve();
+        })),
+        new Promise(resolve => loadCSV('./AFM_input_details.csv', results => {
+          allInputData = results.data || [];
+          resolve();
+        }))
+      ]).then(() => {
+        // Nach dem Laden aller Daten Filter anwenden
+        applyFilters();
+        processAllData();
       });
     }
 
@@ -825,7 +855,7 @@
         document.getElementById('lastRunTime').textContent = lastRun.Zeitpunkt.split(' ')[1] || '-';
       }
 
-      // Daten für das Chart vorbereiten
+      // Daten für die Charts vorbereiten
       const labels = [];
       const inputData = [];
       const errorData = [];
@@ -841,13 +871,13 @@
         }
       });
 
-      // Chart erstellen
-      const ctx = document.getElementById('statusChart').getContext('2d');
-      if (window.statusChart instanceof Chart) {
-        window.statusChart.destroy();
+      // Input-Chart erstellen
+      const ctxInput = document.getElementById('inputChart').getContext('2d');
+      if (window.inputChart instanceof Chart) {
+        window.inputChart.destroy();
       }
       
-      window.statusChart = new Chart(ctx, {
+      window.inputChart = new Chart(ctxInput, {
         type: 'line',
         data: {
           labels: labels,
@@ -858,14 +888,82 @@
               borderColor: 'rgba(54, 162, 235, 1)',
               backgroundColor: 'rgba(54, 162, 235, 0.2)',
               tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Anzahl der Dateien'
+              }
             },
+            x: {
+              title: {
+                display: true,
+                text: 'Zeitpunkt'
+              }
+            }
+          }
+        }
+      });
+
+      // Error-Chart erstellen
+      const ctxError = document.getElementById('errorChart').getContext('2d');
+      if (window.errorChart instanceof Chart) {
+        window.errorChart.destroy();
+      }
+      
+      window.errorChart = new Chart(ctxError, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
             {
-              label: 'Error',
+              label: 'Fehler',
               data: errorData,
               borderColor: 'rgba(255, 99, 132, 1)',
               backgroundColor: 'rgba(255, 99, 132, 0.2)',
               tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Anzahl der Fehler'
+              }
             },
+            x: {
+              title: {
+                display: true,
+                text: 'Zeitpunkt'
+              }
+            }
+          }
+        }
+      });
+
+      // Archiv-Chart erstellen
+      const ctxArchive = document.getElementById('archiveChart').getContext('2d');
+      if (window.archiveChart instanceof Chart) {
+        window.archiveChart.destroy();
+      }
+      
+      window.archiveChart = new Chart(ctxArchive, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
             {
               label: 'Archiv',
               data: archiveData,
@@ -880,7 +978,17 @@
           maintainAspectRatio: false,
           scales: {
             y: {
-              beginAtZero: true
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Anzahl der Dateien'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Zeitpunkt'
+              }
             }
           }
         }
@@ -894,8 +1002,7 @@
                       parseInt(lastEntry['Archiv'] || 0));
         document.getElementById('totalFiles').textContent = total;
         
-        // Fehlerrate berechnen - KORRIGIERT
-        // Berechnung für korrekte Fehlerrate (Fehler / Gesamtdateien * 100)
+        // Fehlerrate berechnen
         const errorCount = filteredErrorData.length;
         const errorRate = total > 0 ? ((errorCount / total) * 100).toFixed(1) + '%' : '0%';
         document.getElementById('errorRate').textContent = errorRate;
@@ -1013,28 +1120,33 @@
     function createErrorTrendChart() {
       if (filteredPatternData.length === 0) return;
       
-      // Daten nach Datum und Muster gruppieren
-      const errorTypesByDate = {};
+      // Daten nach Stunde und Muster gruppieren (statt nach Datum)
+      const errorTypesByHour = {};
       const errorTypes = new Set();
       
       filteredPatternData.forEach(entry => {
-        const date = entry.Zeitpunkt.split(' ')[0];
+        if (!entry.Zeitpunkt) return;
+        
+        // Zeitpunkt zerlegen, um Stunde zu extrahieren
+        const [datePart, timePart] = entry.Zeitpunkt.split(' ');
+        const hour = timePart.split(':')[0];
+        const formattedDateTime = `${datePart} ${hour}:00`; // Gruppierung nach Stunden
         const pattern = entry.Muster;
         
-        if (!errorTypesByDate[date]) {
-          errorTypesByDate[date] = {};
+        if (!errorTypesByHour[formattedDateTime]) {
+          errorTypesByHour[formattedDateTime] = {};
         }
         
-        if (!errorTypesByDate[date][pattern]) {
-          errorTypesByDate[date][pattern] = 0;
+        if (!errorTypesByHour[formattedDateTime][pattern]) {
+          errorTypesByHour[formattedDateTime][pattern] = 0;
         }
         
-        errorTypesByDate[date][pattern]++;
+        errorTypesByHour[formattedDateTime][pattern]++;
         errorTypes.add(pattern);
       });
       
       // Daten für Chart.js vorbereiten
-      const labels = Object.keys(errorTypesByDate).sort();
+      const labels = Object.keys(errorTypesByHour).sort();
       const datasets = [];
       
       // Farben für verschiedene Fehlertypen
@@ -1049,7 +1161,7 @@
       
       // Ein Dataset pro Fehlertyp erstellen
       Array.from(errorTypes).forEach((type, index) => {
-        const data = labels.map(date => errorTypesByDate[date][type] || 0);
+        const data = labels.map(hourTime => errorTypesByHour[hourTime][type] || 0);
         
         datasets.push({
           label: type,
@@ -1086,7 +1198,21 @@
             x: {
               title: {
                 display: true,
-                text: 'Datum'
+                text: 'Datum und Stunde'
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                title: function(context) {
+                  // Formatierung des Tooltip-Titels für bessere Lesbarkeit
+                  return context[0].label;
+                }
               }
             }
           }
