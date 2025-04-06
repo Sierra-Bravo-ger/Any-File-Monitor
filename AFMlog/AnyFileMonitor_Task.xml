@@ -42,8 +42,8 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>powershell.exe</Command>
-      <Arguments>-ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Transfer\LIS_Simulator\AFMlog\AnyFileMonitor.ps1"</Arguments>
+      <Command>wscript.exe</Command>
+      <Arguments>"C:\Transfer\LIS_Simulator\AFMlog\noconsole.vbs"</Arguments>
       <WorkingDirectory>C:\Transfer\LIS_Simulator\AFMlog</WorkingDirectory>
     </Exec>
   </Actions>
