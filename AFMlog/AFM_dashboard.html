@@ -293,11 +293,19 @@
               <input class="mdl-textfield__input" type="date" id="startDate">
               <label class="mdl-textfield__label" for="startDate">Startdatum</label>
             </div>
+            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" style="margin-left: 8px;">
+              <input class="mdl-textfield__input" type="time" id="startTime">
+              <label class="mdl-textfield__label" for="startTime">Startzeit</label>
+            </div>
           </div>
           <div class="filter-item">
             <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
               <input class="mdl-textfield__input" type="date" id="endDate">
               <label class="mdl-textfield__label" for="endDate">Enddatum</label>
+            </div>
+            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" style="margin-left: 8px;">
+              <input class="mdl-textfield__input" type="time" id="endTime">
+              <label class="mdl-textfield__label" for="endTime">Endzeit</label>
             </div>
           </div>
           <div class="filter-item">
@@ -589,6 +597,8 @@
     let filteredInputData = [];
     let startDateFilter = null;
     let endDateFilter = null;
+    let startTimeFilter = null;
+    let endTimeFilter = null;
     
     // Bekannte Fehlermuster aus config.ini
     const knownErrorPatterns = [
@@ -649,14 +659,38 @@
     function applyDateFilter() {
       const startInput = document.getElementById('startDate');
       const endInput = document.getElementById('endDate');
+      const startTimeInput = document.getElementById('startTime');
+      const endTimeInput = document.getElementById('endTime');
       
-      startDateFilter = startInput.value ? new Date(startInput.value) : null;
-      endDateFilter = endInput.value ? new Date(endInput.value) : null;
-      
-      if (endDateFilter) {
-        // End-Datum auf Ende des Tages setzen
-        endDateFilter.setHours(23, 59, 59, 999);
+      // Vollständige Zeitstempel erstellen, die Datum und Uhrzeit kombinieren
+      if (startInput.value) {
+        const startDate = new Date(startInput.value);
+        if (startTimeInput.value) {
+          const [hours, minutes] = startTimeInput.value.split(':');
+          startDate.setHours(parseInt(hours), parseInt(minutes), 0);
+        } else {
+          startDate.setHours(0, 0, 0); // Beginn des Tages, wenn keine Zeit angegeben
+        }
+        startDateFilter = startDate;
+      } else {
+        startDateFilter = null;
       }
+      
+      if (endInput.value) {
+        const endDate = new Date(endInput.value);
+        if (endTimeInput.value) {
+          const [hours, minutes] = endTimeInput.value.split(':');
+          endDate.setHours(parseInt(hours), parseInt(minutes), 59);
+        } else {
+          endDate.setHours(23, 59, 59); // Ende des Tages, wenn keine Zeit angegeben
+        }
+        endDateFilter = endDate;
+      } else {
+        endDateFilter = null;
+      }
+      
+      console.log("Start filter:", startDateFilter);
+      console.log("End filter:", endDateFilter);
       
       applyFilters();
       processAllData();
@@ -666,6 +700,8 @@
     function resetDateFilter() {
       document.getElementById('startDate').value = '';
       document.getElementById('endDate').value = '';
+      document.getElementById('startTime').value = '';
+      document.getElementById('endTime').value = '';
       startDateFilter = null;
       endDateFilter = null;
       
@@ -690,7 +726,13 @@
       return data.filter(row => {
         if (!row.Zeitpunkt) return true;
         
-        const rowDate = new Date(row.Zeitpunkt);
+        // Zeitstempel aus dem Datensatz parsen
+        const [datePart, timePart] = row.Zeitpunkt.split(' ');
+        const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+        const [hours, minutes, seconds] = timePart.split(':').map(num => parseInt(num));
+        
+        // JavaScript Monate sind 0-basiert (0 = Januar)
+        const rowDate = new Date(year, month - 1, day, hours, minutes, seconds);
         
         if (startDateFilter && rowDate < startDateFilter) return false;
         if (endDateFilter && rowDate > endDateFilter) return false;
@@ -1338,7 +1380,9 @@
       const totalFiles = parseInt(lastEntry['Input'] || 0) + 
                          parseInt(lastEntry['Archiv'] || 0) + 
                          parseInt(lastEntry['Error'] || 0);
-      const errorCount = parseInt(lastEntry['Error'] || 0);
+      
+      // Dieselbe Berechnung wie bei der Fehlerrate verwenden
+      const errorCount = filteredErrorData.length;
       
       // Gesundheit berechnen: 100% - Fehlerrate
       let healthPercentage = 100;
