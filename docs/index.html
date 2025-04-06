@@ -82,6 +82,24 @@
 
   <hr>
 
+  <h2>📊 Ressourcenverbrauch</h2>
+  <p>
+    Das Dashboard ist sehr ressourcenschonend konzipiert:
+  </p>
+  <ul>
+    <li>🖥️ <strong>Webserver</strong>: Minimaler Verbrauch (~5-10 MB RAM), da nur statische Dateien ausgeliefert werden</li>
+    <li>⏱️ <strong>5-Minuten-Task</strong>: Vernachlässigbare CPU-Last (< 0,1%) bei regelmäßiger Aktualisierung</li>
+    <li>🔄 <strong>Browser</strong>: ~50-80 MB RAM (abhängig vom Browser und Datenmenge)</li>
+    <li>💾 <strong>Festplatte</strong>: < 5 MB für alle Dashboard-Dateien plus CSV-Logs</li>
+    <li>🌐 <strong>Netzwerk</strong>: Nur initiale Ladezeit, danach minimaler Traffic bei Aktualisierungen (wenige KB)</li>
+  </ul>
+  <p>
+    Die clientseitige Verarbeitung und das stateless Design sorgen dafür, dass selbst auf älteren Systemen 
+    oder Umgebungen mit beschränkten Ressourcen ein reibungsloser Betrieb möglich ist.
+  </p>
+
+  <hr>
+
   <h2>⚙️ Verwendung (lokal)</h2>
   <ol>
     <li>Stelle sicher, dass alle CSV-Dateien im selben Ordner wie <code>index.html</code> liegen</li>

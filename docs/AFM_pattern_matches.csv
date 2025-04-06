@@ -28,3 +28,15 @@
 2025-04-06 14:18:16;test2048.error;Timeout;Timeout
 2025-04-06 14:18:16;test2049.error;Timeout;Timeout
 2025-04-06 14:18:16;test2050.error;Timeout;Timeout
+2025-04-06 15:25:02;test2501.error;Verbindung vom peer;Verbindung vom peer zurÃ¼ckgesetzt
+2025-04-06 15:25:02;test2502.error;Verbindung vom peer;Verbindung vom peer zurÃ¼ckgesetzt
+2025-04-06 15:35:02;test2541.error;Timeout;Timeout
+2025-04-06 15:35:02;test2542.error;Timeout;Timeout
+2025-04-06 15:35:02;test2543.error;Timeout;Timeout
+2025-04-06 15:35:02;test2544.error;Timeout;Timeout
+2025-04-06 15:35:02;test2545.error;Timeout;Timeout
+2025-04-06 15:35:02;test2546.error;lock conflict;lock conflict
+2025-04-06 15:35:02;test2547.error;lock conflict;lock conflict
+2025-04-06 15:35:02;test2548.error;lock conflict;lock conflict
+2025-04-06 15:35:02;test2549.error;lock conflict;lock conflict
+2025-04-06 15:35:02;test2550.error;lock conflict;lock conflict

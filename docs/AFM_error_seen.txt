@@ -28,3 +28,15 @@ test2047.error
 test2048.error
 test2049.error
 test2050.error
+test2501.error
+test2502.error
+test2541.error
+test2542.error
+test2543.error
+test2544.error
+test2545.error
+test2546.error
+test2547.error
+test2548.error
+test2549.error
+test2550.error
