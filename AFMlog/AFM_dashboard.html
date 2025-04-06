@@ -109,23 +109,34 @@
       margin-bottom: 16px;
     }
     .mdl-layout__header-row {
-      padding-left: 16px;
-      display: flex;
-      justify-content: center; /* Zentrierung der Inhalte */
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 16px;
     }
+    
     .mdl-layout-title {
+      text-align: center;
       font-size: 20px;
       font-weight: bold;
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%); /* Perfekte horizontale Zentrierung */
+      white-space: nowrap;
+      grid-column: 2;
     }
-    .mdl-layout-spacer {
-      flex-grow: 0; /* Verhindert, dass der Spacer den Titel verschiebt */
+    
+    .header-left {
+      /* Linke Spalte - leer oder für ein Logo */
     }
+    
+    .header-right {
+      display: flex;
+      justify-content: flex-end;
+      grid-column: 3;
+    }
+    
     .mdl-navigation {
-      position: absolute;
-      right: 16px; /* Navigation rechts fixieren */
+      display: flex;
+      justify-content: flex-end;
+      width: 100%;
     }
     .mdl-grid {
       padding: 0;
@@ -259,16 +270,18 @@
   <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
     <header class="mdl-layout__header">
       <div class="mdl-layout__header-row">
+        <div class="header-left"></div>
         <span class="mdl-layout-title">AnyFileMonitor Dashboard</span>
-        <div class="mdl-layout-spacer"></div>
-        <nav class="mdl-navigation">
-          <a class="mdl-navigation__link" href="#overview" onclick="showTab('overview')">Übersicht</a>
-          <a class="mdl-navigation__link" href="#status" onclick="showTab('status')">Status</a>
-          <a class="mdl-navigation__link" href="#analysis" onclick="showTab('analysis')">Analyse</a>
-          <a class="mdl-navigation__link" href="#errors" onclick="showTab('errors')">Fehler</a>
-          <a class="mdl-navigation__link" href="#patterns" onclick="showTab('patterns')">Muster</a>
-          <a class="mdl-navigation__link" href="#input" onclick="showTab('input')">Eingangsdaten</a>
-        </nav>
+        <div class="header-right">
+          <nav class="mdl-navigation">
+            <a class="mdl-navigation__link" href="#overview" onclick="showTab('overview')">Übersicht</a>
+            <a class="mdl-navigation__link" href="#status" onclick="showTab('status')">Status</a>
+            <a class="mdl-navigation__link" href="#analysis" onclick="showTab('analysis')">Analyse</a>
+            <a class="mdl-navigation__link" href="#errors" onclick="showTab('errors')">Fehler</a>
+            <a class="mdl-navigation__link" href="#patterns" onclick="showTab('patterns')">Muster</a>
+            <a class="mdl-navigation__link" href="#input" onclick="showTab('input')">Eingangsdaten</a>
+          </nav>
+        </div>
       </div>
     </header>
     <div class="mdl-layout__drawer">
