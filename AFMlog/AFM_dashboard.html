@@ -583,6 +583,30 @@
       "lock conflict on no wait transaction"
     ];
 
+    // Datumsfilter initialisieren
+    function initDateFilter() {
+      // Heutiges Datum
+      const today = new Date();
+      const todayFormatted = today.toISOString().split('T')[0]; // YYYY-MM-DD Format
+      
+      // Gestriges Datum
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayFormatted = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD Format
+      
+      // Eingabefelder mit den Werten füllen
+      document.getElementById('startDate').value = yesterdayFormatted;
+      document.getElementById('endDate').value = todayFormatted;
+      
+      // Filter-Variablen setzen
+      startDateFilter = yesterday;
+      endDateFilter = new Date(today);
+      endDateFilter.setHours(23, 59, 59, 999); // Ende des Tages
+      
+      // Filter anwenden
+      applyFilters();
+    }
+
     // Tab-Steuerung
     function showTab(tabId) {
       // Alle Tabs verstecken
@@ -1451,6 +1475,9 @@
 
     // Initial alle Daten laden
     loadAllData();
+    
+    // Datumsfilter initialisieren
+    initDateFilter();
     
     // Alle 60 Sekunden aktualisieren
     setInterval(loadAllData, 60000);
