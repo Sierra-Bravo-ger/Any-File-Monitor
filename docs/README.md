@@ -2,6 +2,8 @@
 
 Das **AnyFileMonitor Dashboard** ist eine HTML5-basierte, interaktive Visualisierung der AFM-Logdateien. Es dient der schnellen Analyse von verarbeiteten Dateien, Fehlern, Mustern und Eingängen – vollständig offlinefähig, mobilfreundlich und sofort einsatzbereit.
 
+![Dashboard Übersicht](images/dashboard-overview.png)
+
 ---
 
 ## 🚀 Live-Demo
@@ -29,6 +31,31 @@ Das **AnyFileMonitor Dashboard** ist eine HTML5-basierte, interaktive Visualisie
 - 📱 **Mobilfähig & responsive**: Funktioniert auf Smartphone & Tablet
 - 🔒 **Vollständig offlinefähig**: Keine CDN-Abhängigkeit dank `libs/`
 
+### Dashboard-Ansichten
+
+#### Übersichtsseite
+![Dashboard Übersicht](images/dashboard-summary.png)
+
+#### Fehleranalyse
+![Fehleranalyse](images/dashboard-errors.png)
+
+#### Statusverlauf
+![Statusverlauf](images/dashboard-status.png)
+
+---
+
+## 📊 Ressourcenverbrauch
+
+Das Dashboard ist sehr ressourcenschonend konzipiert:
+
+- 🖥️ **Webserver**: Minimaler Verbrauch (~5-10 MB RAM), da nur statische Dateien ausgeliefert werden
+- ⏱️ **5-Minuten-Task**: Vernachlässigbare CPU-Last (< 0,1%) bei regelmäßiger Aktualisierung
+- 🔄 **Browser**: ~50-80 MB RAM (abhängig vom Browser und Datenmenge)
+- 💾 **Festplatte**: < 5 MB für alle Dashboard-Dateien plus CSV-Logs
+- 🌐 **Netzwerk**: Nur initiale Ladezeit, danach minimaler Traffic bei Aktualisierungen (wenige KB)
+
+Die clientseitige Verarbeitung und das stateless Design sorgen dafür, dass selbst auf älteren Systemen oder Umgebungen mit beschränkten Ressourcen ein reibungsloser Betrieb möglich ist.
+
 ---
 
 ## ⚙️ Verwendung (lokal)
@@ -48,6 +75,12 @@ Oder:
 ## 📌 Hinweis zu CORS / Sicherheit
 
 Das Dashboard **funktioniert nicht direkt per `file:///`-Aufruf in Firefox/Chrome**, da lokale Dateien von JavaScript nicht eingelesen werden dürfen (CORS-Policy). Verwende daher einen lokalen Server oder GitHub Pages.
+
+---
+
+## 🔗 GitHub Repository
+
+[github.com/Sierra-Bravo-ger/AnyFileMonitor](https://github.com/Sierra-Bravo-ger/AnyFileMonitor)
 
 ---
 
