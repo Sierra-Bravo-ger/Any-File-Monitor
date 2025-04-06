@@ -19,6 +19,7 @@ $downloads = @{
     "$jsDir\chartjs-plugin-datalabels.js" = "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"
     "$jsDir\moment.min.js" = "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"
     "$jsDir\moment-de.js" = "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.js"
+    "$jsDir\chartjs-chart-matrix.min.js" = "https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@1.1.1/dist/chartjs-chart-matrix.min.js"
 }
 
 # Dateien herunterladen

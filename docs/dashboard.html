@@ -13,6 +13,7 @@
   <script src="libs/js/papaparse.min.js"></script>
   <!-- Chart.js für Diagramme -->
   <script src="libs/js/chart.js"></script>
+  <script src="libs/js/chartjs-chart-matrix.min.js"></script>
   <script src="libs/js/chartjs-plugin-datalabels.js"></script>
   <!-- Moment.js für Datumsfunktionen -->
   <script src="libs/js/moment.min.js"></script>
@@ -533,6 +534,18 @@
               </div>
             </div>
           </div>
+
+          <!-- Fehler nach Wochentag -->
+          <div class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehler nach Wochentag</h2>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorsByWeekdayChart"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Status Tab -->
@@ -594,6 +607,18 @@
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
                 <canvas id="errorTrendChart"></canvas>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Fehler-Heatmap -->
+          <div class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehler-Heatmap (Wochentag & Uhrzeit)</h2>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorHeatmapChart"></canvas>
               </div>
             </div>
           </div>
@@ -908,6 +933,8 @@
       createErrorTypePieChart();
       updateTopErrorsList();
       updateSystemHealthGauge();
+      createErrorsByWeekdayChart();
+      createErrorHeatmapChart(); // Neue Heatmap-Funktion
     }
 
     function loadCSV(file, callback) {
@@ -1156,21 +1183,44 @@
       }
     }
 
+    // Durchsatz berechnen als Differenz zwischen den letzten beiden Messungen
+    function calculateThroughput(statusData) {
+      if (statusData.length < 2) {
+        return 0;
+      }
+      
+      // Letzter und vorletzter Eintrag
+      const lastEntry = statusData[statusData.length - 1];
+      const prevEntry = statusData[statusData.length - 2];
+      
+      // Summe der verarbeiteten Dateien (Archiv + Error) für jede Messung
+      const lastProcessed = parseInt(lastEntry['Archiv'] || 0) + parseInt(lastEntry['Error'] || 0);
+      const prevProcessed = parseInt(prevEntry['Archiv'] || 0) + parseInt(prevEntry['Error'] || 0);
+      
+      // Differenz = Anzahl der neu verarbeiteten Dateien
+      const processedDifference = lastProcessed - prevProcessed;
+      
+      // Zeitdifferenz in Stunden berechnen
+      const lastTime = new Date(lastEntry.Zeitpunkt);
+      const prevTime = new Date(prevEntry.Zeitpunkt);
+      const hoursDiff = (lastTime - prevTime) / (1000 * 60 * 60); // Millisekunden in Stunden umrechnen
+      
+      // Durchsatz pro Stunde (hochgerechnet, falls das Intervall kürzer als eine Stunde ist)
+      const throughputPerHour = hoursDiff > 0 ? Math.round(processedDifference / hoursDiff) : 0;
+      
+      return throughputPerHour;
+    }
+
     // KPIs berechnen
     function calculateKPIs() {
-      if (filteredStatusData.length === 0) return;
+      if (filteredStatusData.length < 2) return;
       
-      // Durchsatz berechnen (Dateien pro Stunde)
-      const lastEntry = filteredStatusData[filteredStatusData.length - 1];
-      const totalFiles = parseInt(lastEntry['Input'] || 0) + 
-                         parseInt(lastEntry['Archiv'] || 0) + 
-                         parseInt(lastEntry['Error'] || 0);
-      
-      // Annahme: Daten werden stündlich erfasst
-      const throughputPerHour = Math.round(totalFiles / filteredStatusData.length);
+      // Durchsatz-Berechnung mit der neuen Methode
+      const throughputPerHour = calculateThroughput(filteredStatusData);
       document.getElementById('throughput').textContent = throughputPerHour;
       
       // Fehler-zu-Archiv-Verhältnis (umgekehrt im Vergleich zur vorherigen Berechnung)
+      const lastEntry = filteredStatusData[filteredStatusData.length - 1];
       const archiveCount = parseInt(lastEntry['Archiv'] || 0);
       const errorCount = parseInt(lastEntry['Error'] || 0);
       let ratio = archiveCount > 0 ? ((errorCount / archiveCount) * 100).toFixed(1) + '%' : '∞';
@@ -1481,77 +1531,304 @@
       });
     }
 
-    // Fehlertypen-Verteilung (Pie-Chart)
-    function createErrorTypePieChart() {
-      if (filteredPatternData.length === 0) return;
+    // Fehler nach Wochentag erstellen
+    function createErrorsByWeekdayChart() {
+      if (filteredErrorData.length === 0) return;
       
-      // Fehler nach Muster gruppieren
-      const errorsByType = {};
+      // Fehler nach Wochentag gruppieren
+      const errorsByWeekday = Array(7).fill(0);
       
-      filteredPatternData.forEach(entry => {
-        const pattern = entry.Muster;
-        
-        if (!errorsByType[pattern]) {
-          errorsByType[pattern] = 0;
+      filteredErrorData.forEach(entry => {
+        if (entry.Zeitpunkt) {
+          const [datePart] = entry.Zeitpunkt.split(' ');
+          const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+          const date = new Date(year, month-1, day);
+          const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
+          errorsByWeekday[weekday]++;
         }
-        
-        errorsByType[pattern]++;
       });
       
-      // Daten für Chart.js vorbereiten
-      const labels = Object.keys(errorsByType);
-      const data = Object.values(errorsByType);
-      
-      // Farben für verschiedene Fehlertypen
-      const backgroundColors = [
-        'rgba(255, 99, 132, 0.2)',
-        'rgba(54, 162, 235, 0.2)',
-        'rgba(255, 206, 86, 0.2)',
-        'rgba(75, 192, 192, 0.2)',
-        'rgba(153, 102, 255, 0.2)',
-        'rgba(255, 159, 64, 0.2)'
-      ];
-      
-      const borderColors = [
-        'rgba(255, 99, 132, 1)',
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        'rgba(75, 192, 192, 1)',
-        'rgba(153, 102, 255, 1)',
-        'rgba(255, 159, 64, 1)'
-      ];
+      // Wochentagsnamen
+      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
       
       // Chart erstellen
-      const ctx = document.getElementById('errorTypePieChart').getContext('2d');
-      if (window.errorTypePieChart instanceof Chart) {
-        window.errorTypePieChart.destroy();
+      const ctx = document.getElementById('errorsByWeekdayChart').getContext('2d');
+      if (window.errorsByWeekdayChart instanceof Chart) {
+        window.errorsByWeekdayChart.destroy();
       }
       
-      window.errorTypePieChart = new Chart(ctx, {
-        type: 'pie',
+      window.errorsByWeekdayChart = new Chart(ctx, {
+        type: 'bar',
         data: {
-          labels: labels,
+          labels: weekdays,
           datasets: [{
-            data: data,
-            backgroundColor: backgroundColors.slice(0, labels.length),
-            borderColor: borderColors.slice(0, labels.length),
+            label: 'Fehler pro Wochentag',
+            data: errorsByWeekday,
+            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+            borderColor: 'rgba(153, 102, 255, 1)',
             borderWidth: 1
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: {
-                boxWidth: 12
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Anzahl der Fehler'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Wochentag'
               }
             }
           }
         }
       });
     }
+
+// Verbesserte Fehler-Heatmap nach Wochentag und Stunde erstellen
+function createErrorHeatmapChart() {
+  if (filteredErrorData.length === 0) return;
+  
+  // Properly destroy existing chart if it exists
+  if (window.errorHeatmapChart instanceof Chart) {
+    window.errorHeatmapChart.destroy();
+    window.errorHeatmapChart = null;
+  }
+  
+  const ctx = document.getElementById('errorHeatmapChart').getContext('2d');
+  
+  // 2D-Array für die Heatmap erstellen (7 Wochentage x 24 Stunden)
+  const heatmapData = Array(7).fill().map(() => Array(24).fill(0));
+  
+  // Wochentagsnamen für die y-Achse
+  const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  
+  // Stunden für die x-Achse
+  const hours = Array.from({length: 24}, (_, i) => `${i}:00`);
+  
+  // Fehler nach Wochentag und Stunde zählen
+  filteredErrorData.forEach(entry => {
+    if (entry.Zeitpunkt) {
+      const [datePart, timePart] = entry.Zeitpunkt.split(' ');
+      const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+      const hour = parseInt(timePart.split(':')[0]);
+      
+      if (!isNaN(hour) && hour >= 0 && hour < 24) {
+        const date = new Date(year, month - 1, day);
+        const weekday = date.getDay();
+        heatmapData[weekday][hour]++;
+      }
+    }
+  });
+  
+  // Alle Datenpunkte in ein flaches Array umwandeln für die Heatmap
+  const data = [];
+  heatmapData.forEach((dayData, dayIndex) => {
+    dayData.forEach((value, hourIndex) => {
+      data.push({
+        x: hourIndex,
+        y: dayIndex,
+        v: value
+      });
+    });
+  });
+  
+  // Calculate max value for scaling
+  const maxValue = Math.max(...data.map(d => d.v), 1);
+  
+  // Der Hauptunterschied: Statt scatter Plot verwenden wir matrix mit Colors
+  try {
+    window.errorHeatmapChart = new Chart(ctx, {
+      type: 'matrix',
+      data: {
+        datasets: [{
+          label: 'Fehler-Heatmap',
+          data: data,
+          borderWidth: 1,
+          borderColor: 'rgba(0, 0, 0, 0.2)',
+          backgroundColor: function(context) {
+            if (!context.raw) return 'rgba(220, 220, 220, 0.5)';
+            const value = context.raw.v || 0;
+            
+            if (value === 0) return 'rgba(240, 240, 240, 0.8)';
+            
+            // Logarithmische Farbskala für bessere Unterscheidung
+            const logBase = 1.5;
+            const logMax = Math.log(maxValue + 1) / Math.log(logBase);
+            const logValue = Math.log(value + 1) / Math.log(logBase);
+            const normalizedValue = logValue / logMax;
+            
+            // Farbübergang: weiß → gelb → orange → rot
+            if (normalizedValue < 0.25) {
+              return `rgba(255, 255, ${Math.floor(255 - normalizedValue * 4 * 255)}, 0.8)`;
+            } else if (normalizedValue < 0.5) {
+              return `rgba(255, ${Math.floor(255 - (normalizedValue - 0.25) * 4 * 255)}, 0, 0.8)`;
+            } else {
+              const intensity = 0.5 + 0.5 * normalizedValue;
+              return `rgba(${Math.floor(255 * intensity)}, 0, 0, 0.8)`;
+            }
+          },
+          width: function() {
+            return 25; // Konstante Zellbreite
+          },
+          height: function() {
+            return 25; // Konstante Zellhöhe
+          }
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              title: function(context) {
+                const x = context[0].raw.x;
+                const y = context[0].raw.y;
+                return `${weekdays[y]}, ${hours[x]}`;
+              },
+              label: function(context) {
+                return `Fehler: ${context.raw.v}`;
+              }
+            }
+          },
+          legend: {
+            display: false
+          },
+          title: {
+            display: true,
+            text: 'Fehler-Heatmap nach Wochentag und Uhrzeit',
+            font: {
+              size: 16
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'category',
+            labels: hours,
+            position: 'top',
+            offset: true,
+            ticks: {
+              autoSkip: false,
+              maxRotation: 90,
+              minRotation: 90
+            },
+            title: {
+              display: true,
+              text: 'Stunde des Tages'
+            },
+            grid: {
+              display: false
+            }
+          },
+          y: {
+            type: 'category',
+            labels: weekdays,
+            offset: true,
+            reverse: true,
+            title: {
+              display: true,
+              text: 'Wochentag'
+            },
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error creating heatmap chart:", error);
+    
+    // Fallback: Wenn Matrix-Typ nicht verfügbar ist, verwenden wir einen angepassten Scatter-Plot
+    try {
+      window.errorHeatmapChart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Fehler-Heatmap',
+            data: data.map(d => ({ 
+              x: hours[d.x], 
+              y: weekdays[d.y], 
+              v: d.v
+            })),
+            backgroundColor: function(context) {
+              if (!context.raw) return 'rgba(220, 220, 220, 0.5)';
+              const value = context.raw.v || 0;
+              
+              if (value === 0) return 'rgba(240, 240, 240, 0.8)';
+              
+              // Logarithmische Skala für besseren Farbverlauf
+              const logBase = 1.5;
+              const logMax = Math.log(maxValue + 1) / Math.log(logBase);
+              const logValue = Math.log(value + 1) / Math.log(logBase);
+              const normalizedValue = logValue / logMax;
+              
+              return `rgba(255, ${Math.round(100 - normalizedValue * 100)}, ${Math.round(100 - normalizedValue * 100)}, 0.7)`;
+            },
+            pointRadius: 15, // Konstante Größe statt variabler Größe
+            pointHoverRadius: 18
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'category',
+              position: 'top',
+              title: {
+                display: true,
+                text: 'Stunde des Tages'
+              },
+              ticks: {
+                autoSkip: false,
+                maxRotation: 90,
+                minRotation: 90
+              }
+            },
+            y: {
+              type: 'category',
+              title: {
+                display: true,
+                text: 'Wochentag'
+              },
+              reverse: true
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.raw.y}, ${context.raw.x}: ${context.raw.v} Fehler`;
+                }
+              }
+            },
+            legend: {
+              display: false
+            },
+            title: {
+              display: true,
+              text: 'Fehler-Heatmap nach Wochentag und Uhrzeit',
+              font: {
+                size: 16
+              }
+            }
+          }
+        }
+      });
+    } catch (fallbackError) {
+      console.error("Fallback heatmap also failed:", fallbackError);
+    }
+  }
+}
 
     // Top Fehler-Liste aktualisieren
     function updateTopErrorsList() {
@@ -1764,6 +2041,99 @@
       if (typeof componentHandler !== 'undefined') {
         componentHandler.upgradeElement(table);
       }
+    }
+
+    // Fehler-Typ-Kuchendiagramm erstellen
+    function createErrorTypePieChart() {
+      if (filteredPatternData.length === 0) return;
+      
+      // Fehler nach Muster gruppieren
+      const errorsByType = {};
+      let otherErrors = 0;
+      
+      filteredPatternData.forEach(entry => {
+        const pattern = entry.Muster;
+        
+        if (!errorsByType[pattern]) {
+          errorsByType[pattern] = 0;
+        }
+        
+        errorsByType[pattern]++;
+      });
+      
+      // Nach Häufigkeit sortieren
+      const sortedErrors = Object.entries(errorsByType)
+        .sort((a, b) => b[1] - a[1]);
+      
+      // Top 5 extrahieren, Rest unter "Sonstige" zusammenfassen
+      const labels = [];
+      const data = [];
+      const backgroundColor = [
+        'rgba(255, 99, 132, 0.7)',
+        'rgba(54, 162, 235, 0.7)',
+        'rgba(255, 206, 86, 0.7)',
+        'rgba(75, 192, 192, 0.7)',
+        'rgba(153, 102, 255, 0.7)'
+      ];
+      
+      sortedErrors.forEach((error, index) => {
+        if (index < 5) {
+          labels.push(error[0]);
+          data.push(error[1]);
+        } else {
+          otherErrors += error[1];
+        }
+      });
+      
+      if (otherErrors > 0) {
+        labels.push('Sonstige');
+        data.push(otherErrors);
+        backgroundColor.push('rgba(201, 203, 207, 0.7)');
+      }
+      
+      // Chart erstellen
+      const ctx = document.getElementById('errorTypePieChart').getContext('2d');
+      if (window.errorTypePieChart instanceof Chart) {
+        window.errorTypePieChart.destroy();
+      }
+      
+      window.errorTypePieChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: backgroundColor,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                boxWidth: 15,
+                font: {
+                  size: 11
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                  const percentage = ((value / total) * 100).toFixed(1);
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
     }
 
     // Initial alle Daten laden
