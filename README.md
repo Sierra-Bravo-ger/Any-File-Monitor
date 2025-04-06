@@ -2,7 +2,7 @@
 
 Ein konfigurierbares Tool zum Überwachen von Dateisystemen, das in verschiedenen API-Umgebungen eingesetzt werden kann. AnyFileMonitor hilft bei der Fehlerverfolgung und -behebung durch automatisierte Überwachung, Protokollierung und Benachrichtigung.
 
-![AFM Dashboard](https://github.com/user-attachments/assets/a9ff1a00-798f-4532-aa24-1588c8b49eb7)
+## [Demo-Showcase](https://afm.madmoench.de/) 
 
 ## Funktionen
 
