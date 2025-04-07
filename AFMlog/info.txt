@@ -11,3 +11,10 @@ powershell -File -ExecutionPolicy Bypass .\get_libs.ps1
 
 powershell -File -ExecutionPolicy Bypass .\Test-AFM.ps1                 
 └──Skript das Test-Dateien erzeugt Hauptskript ausführt und diverse Switches hat
+
+powershell -File -ExecutionPolicy Bypass .\LIS_Simulator.ps1                 
+└──Script to simulate the behavior of the interface by moving files from INPUT to ARCHIV
+└──and occasionally generating error files in ARCHIV\ERROR
+
+1..5000 | ForEach-Object { $ext = ".ext"; $content = "H|@^\\|ODM-IdfDGIWA-36|||GeneXpert PC^GeneXpert^4.8|||||LIS||P|1394-97|20070521100245`nP|1`nO|1|SID-$_||^^^TestId-12|S|20070812140500|||||A||||ORH||||||||||Q`nO|2|SID-$_||^^^TestId-14|S|20070812140600|||||A||||ORH||||||||||Q`nO|3|SID-$_||^^^TestId-16|S|20070812140700|||||A||||ORH||||||||||Q`nL|1|F"; Set-Content -Path ".\test$_$ext" -Value $content }
+└──Powershell Command for creating Test Files with sample Information
