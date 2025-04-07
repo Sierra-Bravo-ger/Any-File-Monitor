@@ -9,3 +9,4 @@ AFMlog/AFM_error_seen.txt
 AFMlog/AFM_pattern_matches.csv
 smtp_login.txt
 AFMlog/config.ini
+QUEUE/

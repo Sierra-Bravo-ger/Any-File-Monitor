@@ -92,15 +92,24 @@ Hallo,
 
 das AnyFileMonitor-Skript hat $inputCount Dateien im $inputPath gefunden.
 
-Dies deutet normalerweise auf verzögerte Bearbeitung hin.
+Dies deutet normalerweise auf verzoegerte Bearbeitung hin.
 
-Mit freundlichen Grueßen,
+Mit freundlichen Gruessen,
 Ihr AnyFileMonitor
 "@
         
-        # Sichere Anmeldeinformationen erstellen
+        if ($emailUsername -and ($emailPassword -and $emailPassword.Trim() -ne "")) {
+        # Benutzername und Passwort vorhanden, Anmeldeinformationen erstellen
         $securePassword = ConvertTo-SecureString $emailPassword -AsPlainText -Force
         $credentials = New-Object System.Management.Automation.PSCredential ($emailUsername, $securePassword)
+        } elseif ($emailUsername) {
+        # Nur Benutzername vorhanden, leeres Passwort verwenden
+        $securePassword = ConvertTo-SecureString "" -AsPlainText -Force
+        $credentials = New-Object System.Management.Automation.PSCredential ($emailUsername, $securePassword)
+        } else {
+        # Weder Benutzername noch Passwort vorhanden, keine Anmeldeinformationen
+        $credentials = $null
+        }
         
         # E-Mail-Parameter
         $mailParams = @{
@@ -111,7 +120,11 @@ Ihr AnyFileMonitor
             To = $emailTo
             Subject = "Verzoegerte Verarbeitung"
             Body = $emailBodyDelayed
-            Credential = $credentials
+        }
+        
+        # Anmeldeinformationen nur hinzufügen, wenn sie existieren
+        if ($credentials) {
+            $mailParams.Credential = $credentials
         }
         
         # E-Mail senden
@@ -206,18 +219,36 @@ foreach ($errFile in $errorFilesForProcessing) {
         # Fehlerlog schreiben
         "$timestamp;$errorFilename;$errorText;$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding UTF8
 
-        # Prüfen, ob der Fehlertext einen der konfigurierten RegEx-Ausdrücke enthält
-        foreach ($pattern in $errorPatterns) {
-            if ($errorText -match $pattern) {
-                $patternMatches += [PSCustomObject]@{
-                    Zeitpunkt = $timestamp
-                    Datei = $errorFilename
-                    Muster = $pattern
-                    Text = $errorText
-                }
-                break  # Ein Treffer pro Datei reicht
+# Ausnahme-Patterns aus config laden
+$excludePatterns = @()
+if ($config.ContainsKey('excludePatterns')) {
+    $excludePatterns = ($config['excludePatterns'] -split ',') | ForEach-Object { $_.Trim() }
+}
+
+# Bei der Musterprüfung:
+foreach ($pattern in $errorPatterns) {
+    if ($errorText -match $pattern) {
+        # Prüfen, ob eine Ausnahme zutrifft
+        $isExcluded = $false
+        foreach ($excludePattern in $excludePatterns) {
+            if ($errorText -match $excludePattern) {
+                $isExcluded = $true
+                break
             }
         }
+        
+        # Nur wenn keine Ausnahme zutrifft, als Treffer zählen
+        if (-not $isExcluded) {
+            $patternMatches += [PSCustomObject]@{
+                Zeitpunkt = $timestamp
+                Datei = $errorFilename
+                Muster = $pattern
+                Text = $errorText
+            }
+            break  # Ein Treffer pro Datei reicht
+        }
+    }
+}
 
         # Gesehen-Liste aktualisieren
         Add-Content $seenList $errorFilename
