@@ -57,7 +57,7 @@ Write-Host ""
 
 $fileCounter = 0
 $errorCounter = 0
-$nextErrorAfter = Get-Random -Minimum 20 -Maximum 31
+$nextErrorAfter = Get-Random -Minimum 30 -Maximum 46
 
 try {
     while ($true) {
@@ -90,7 +90,7 @@ try {
                 
                 # Zurücksetzen des Fehlerzählers und Generieren eines neuen Schwellenwerts
                 $errorCounter = 0
-                $nextErrorAfter = Get-Random -Minimum 20 -Maximum 31
+                $nextErrorAfter = Get-Random -Minimum 30 -Maximum 46
             } else {
                 # Normal case - move to archive
                 $targetPath = Join-Path $archivPath $file.Name

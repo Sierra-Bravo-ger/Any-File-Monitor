@@ -44,6 +44,12 @@ if ($config.ContainsKey('emailEnabled') -and $config['emailEnabled'] -eq 'true')
     $emailUsername = $config['emailUsername']
     $emailPassword = $config['emailPassword']
     $emailMinPatternMatches = [int]$config['emailMinPatternMatches']
+    
+    # Neue Konfiguration für Input-Threshold
+    $emailInputThreshold = 0
+    if ($config.ContainsKey('emailInputThreshold')) {
+        $emailInputThreshold = [int]$config['emailInputThreshold']
+    }
 }
 
 # Pfad für das Muster-Log (Treffer der RegEx-Ausdrücke)
@@ -76,6 +82,47 @@ $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $inputFiles = Get-ChildItem -Path $inputPath -File -ErrorAction SilentlyContinue | 
               Where-Object { $fileExtensions -contains $_.Extension.ToLower() }
 $inputCount = $inputFiles.Count
+
+# Prüfen, ob der Input-Threshold überschritten wurde und eine E-Mail senden, wenn nötig
+if ($emailEnabled -and $emailInputThreshold -gt 0 -and $inputCount -gt $emailInputThreshold) {
+    try {
+        # E-Mail-Inhalt für verzögerte Verarbeitung erstellen
+        $emailBodyDelayed = @"
+Hallo,
+
+das AnyFileMonitor-Skript hat $inputCount Dateien im $inputPath gefunden.
+
+Dies deutet normalerweise auf verzögerte Bearbeitung hin.
+
+Mit freundlichen Grueßen,
+Ihr AnyFileMonitor
+"@
+        
+        # Sichere Anmeldeinformationen erstellen
+        $securePassword = ConvertTo-SecureString $emailPassword -AsPlainText -Force
+        $credentials = New-Object System.Management.Automation.PSCredential ($emailUsername, $securePassword)
+        
+        # E-Mail-Parameter
+        $mailParams = @{
+            SmtpServer = $emailSmtpServer
+            Port = $emailSmtpPort
+            UseSsl = $emailUseSSL
+            From = $emailFrom
+            To = $emailTo
+            Subject = "Verzoegerte Verarbeitung"
+            Body = $emailBodyDelayed
+            Credential = $credentials
+        }
+        
+        # E-Mail senden
+        Send-MailMessage @mailParams
+        
+        Write-Host "E-Mail über verzögerte Verarbeitung wurde gesendet: $inputCount Dateien im Input-Ordner." -ForegroundColor Yellow
+    }
+    catch {
+        Write-Host "Fehler beim Senden der E-Mail über verzögerte Verarbeitung: $_" -ForegroundColor Red
+    }
+}
 
 # Optimierung: Nur die ersten 5 Dateien für die CSV-Datei verwenden
 $inputFileNamesForLog = ""
