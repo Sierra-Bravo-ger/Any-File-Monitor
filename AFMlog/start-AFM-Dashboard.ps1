@@ -89,10 +89,10 @@ namespace SimpleWebServer
                 
                 string hostName = Dns.GetHostName();
                 string externalMessage = externalAccess 
-                    ? string.Format("\nExtern erreichbar über: http://{0}:{1}/AFM_dashboard.html", hostName, port)
+                    ? "\nExtern erreichbar über: http://" + hostName + ":" + port + "/AFM_dashboard.html"
                     : "\nNur lokal erreichbar. Für externen Zugriff starten Sie mit: -ExternalAccess";
                 
-                Console.WriteLine("Server gestartet auf http://localhost:{0}/", port);
+                Console.WriteLine("Server gestartet auf http://localhost:" + port + "/");
                 Console.WriteLine(externalMessage);
                 
                 while (running)
@@ -173,9 +173,68 @@ namespace SimpleWebServer
                     if (string.IsNullOrEmpty(path))
                         path = "AFM_dashboard.html";
                     
-                    // Lokalen Dateipfad bestimmen
-                    string filePath = Path.Combine(rootPath, path.Replace('/', Path.DirectorySeparatorChar));
+                    // Spezielle Behandlung für /csv/ Anfragen
+                    if (path.StartsWith("csv/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string csvFileName = path.Substring(4); // Entferne "csv/"
+                        string csvFilePath = Path.Combine(rootPath, csvFileName);
+                        
+                        // Wenn keine spezifische CSV-Datei angefordert wurde, zeige eine Liste der verfügbaren CSV-Dateien
+                        if (string.IsNullOrEmpty(csvFileName))
+                        {
+                            string[] csvFiles = Directory.GetFiles(rootPath, "*.csv");
+                            writer.WriteLine("HTTP/1.1 200 OK");
+                            writer.WriteLine("Content-Type: text/html; charset=utf-8");
+                            writer.WriteLine();
+                            writer.WriteLine("<html><head><title>CSV-Dateien</title></head><body>");
+                            writer.WriteLine("<h1>Verfügbare CSV-Dateien</h1>");
+                            writer.WriteLine("<ul>");
+                            
+                            foreach (string csvFile in csvFiles)
+                            {
+                                string name = Path.GetFileName(csvFile);
+                                writer.WriteLine("<li><a href='/csv/" + name + "'>" + name + "</a></li>");
+                            }
+                            
+                            writer.WriteLine("</ul></body></html>");
+                            writer.Flush();
+                            Console.WriteLine("200: CSV-Dateiliste (Host: " + hostHeader + ")");
+                            return;
+                        }
+                        
+                        // Prüfe ob die CSV-Datei existiert
+                        if (File.Exists(csvFilePath) && Path.GetExtension(csvFilePath).ToLower() == ".csv")
+                        {
+                            byte[] fileData = File.ReadAllBytes(csvFilePath);
+                            
+                            writer.WriteLine("HTTP/1.1 200 OK");
+                            writer.WriteLine("Content-Type: text/csv; charset=utf-8");
+                            writer.WriteLine("Content-Length: " + fileData.Length);
+                            writer.WriteLine("Connection: close");
+                            writer.WriteLine();
+                            writer.Flush();
+                            
+                            stream.Write(fileData, 0, fileData.Length);
+                            stream.Flush();
+                            
+                            Console.WriteLine("200: CSV-Datei " + csvFileName + " (Host: " + hostHeader + ", " + fileData.Length + " Bytes)");
+                            return;
+                        }
+                        else
+                        {
+                            // CSV-Datei nicht gefunden
+                            writer.WriteLine("HTTP/1.1 404 Not Found");
+                            writer.WriteLine("Content-Type: text/html");
+                            writer.WriteLine();
+                            writer.WriteLine("<html><body><h1>404 - CSV-Datei nicht gefunden: " + csvFileName + "</h1></body></html>");
+                            writer.Flush();
+                            Console.WriteLine("404: CSV-Datei " + csvFileName + " (Host: " + hostHeader + ")");
+                            return;
+                        }
+                    }
                     
+                    // Lokalen Dateipfad bestimmen
+                    string filePath = Path.Combine(rootPath, path.Replace('/', Path.DirectorySeparatorChar));                    
                     if (!File.Exists(filePath))
                     {
                         // 404 Fehler
@@ -209,21 +268,21 @@ namespace SimpleWebServer
                     }
                     
                     // Datei lesen und senden
-                    byte[] fileData = File.ReadAllBytes(filePath);
+                    byte[] responseData = File.ReadAllBytes(filePath);
                     
                     // HTTP-Antwort senden
                     writer.WriteLine("HTTP/1.1 200 OK");
                     writer.WriteLine("Content-Type: " + contentType);
-                    writer.WriteLine("Content-Length: " + fileData.Length);
+                    writer.WriteLine("Content-Length: " + responseData.Length);
                     writer.WriteLine("Connection: close");
                     writer.WriteLine();
                     writer.Flush();
                     
                     // Binärdaten schreiben
-                    stream.Write(fileData, 0, fileData.Length);
+                    stream.Write(responseData, 0, responseData.Length);
                     stream.Flush();
                     
-                    Console.WriteLine("200: " + path + " (Host: " + hostHeader + ", " + fileData.Length + " Bytes)");
+                    Console.WriteLine("200: " + path + " (Host: " + hostHeader + ", " + responseData.Length + " Bytes)");
                 }
                 catch (Exception ex)
                 {
