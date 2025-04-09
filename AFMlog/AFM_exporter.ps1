@@ -270,7 +270,7 @@ function Get-PrometheusMetricsFromCSV {
                     $metricName = $headerLine[$i] -replace '[^a-zA-Z0-9_]', '_'
                     $metricsArray += "afm_pattern_match_{0} {1}" -f $metricName.ToLower(), [int]$dataLine[$i]
                 }
-            }s
+            }
         } catch {
             Write-Host "Fehler beim Verarbeiten von Pattern Matches: $_" -ForegroundColor Yellow
         }
@@ -302,20 +302,125 @@ function Get-PrometheusMetricsFromCSV {
     # Error Log (csvPath4)
     elseif ($metricPrefix -eq "error") {
         try {
-            $data = $lines | ForEach-Object { 
-                $line = $_ -split ';'
-                [PSCustomObject]@{
-                    Timestamp = $line[0]
-                    ErrorType = $line[1]
-                    Count = 1
+            # Config-Dateipfad und Pattern-Muster
+            $configPath = Join-Path $PSScriptRoot 'config.ini'
+            $errorPatterns = @()
+            $excludePatterns = @()
+            
+            # Muster aus config.ini laden, falls vorhanden
+            if (Test-Path $configPath) {
+                $configContent = Get-Content $configPath -Raw
+                
+                # Error Patterns laden
+                if ($configContent -match 'errorPatterns=([^\r\n]*)') {
+                    $errorPatternsString = $matches[1]
+                    $errorPatterns = $errorPatternsString -split ',' | ForEach-Object { $_.Trim() }
+                }
+                
+                # Exclude Patterns laden
+                if ($configContent -match 'excludePatterns=([^\r\n]*)') {
+                    $excludePatternsString = $matches[1]
+                    $excludePatterns = $excludePatternsString -split ',' | ForEach-Object { $_.Trim() }
                 }
             }
             
-            $groupedData = $data | Group-Object -Property ErrorType
-            foreach ($group in $groupedData) {
-                $errorType = $group.Name -replace '[^a-zA-Z0-9_]', '_'
-                $metricsArray += "afm_error_{0}_total {1}" -f $errorType.ToLower(), $group.Count
+            # Initialisiere Pattern-Match Zähler
+            $patternMatches = @{}
+            foreach ($pattern in $errorPatterns) {
+                if ($pattern) {
+                    $metricName = $pattern -replace '[^a-zA-Z0-9_]', '_'
+                    $patternMatches[$metricName.ToLower()] = 0
+                }
             }
+            
+            # Erfassen der Fehlerstatistiken
+            $totalErrors = 0
+            $testErrors = 0
+            $otherErrors = 0
+            $errorsByHour = @{}
+            $latestErrorTimestamp = 0
+            
+            # Alle Fehlerzeilen durchgehen
+            $lines | ForEach-Object { 
+                $line = $_ -split ';'
+                if ($line.Count -ge 2) {
+                    $timestamp = $line[0]
+                    $errorMessage = $line[1]
+                    
+                    # Versuche, den Zeitpunkt zu parsen
+                    $errorTime = $null
+                    if ([DateTime]::TryParse($timestamp, [ref]$errorTime)) {
+                        # Stündliche Fehlerrate erfassen
+                        $hourKey = $errorTime.ToString("yyyy-MM-dd HH:00:00")
+                        if (-not $errorsByHour.ContainsKey($hourKey)) {
+                            $errorsByHour[$hourKey] = 0
+                        }
+                        $errorsByHour[$hourKey]++
+                        
+                        # Erfasse den neuesten Fehler-Zeitstempel
+                        $errorTimestamp = [int][double]::Parse((Get-Date $errorTime -UFormat %s))
+                        if ($errorTimestamp -gt $latestErrorTimestamp) {
+                            $latestErrorTimestamp = $errorTimestamp
+                        }
+                    }
+                    
+                    # Prüfen ob der Fehler in den Ausschlussmustern enthalten ist
+                    $excluded = $false
+                    foreach ($pattern in $excludePatterns) {
+                        if ($pattern -and $errorMessage -match $pattern) {
+                            $excluded = $true
+                            break
+                        }
+                    }
+                    
+                    # Wenn der Fehler nicht ausgeschlossen ist, verarbeiten
+                    if (-not $excluded) {
+                        $totalErrors++
+                        
+                        # Testfehler vs. andere Fehler unterscheiden
+                        if ($errorMessage -match "test\d+") {
+                            $testErrors++
+                        } else {
+                            $otherErrors++
+                        }
+                        
+                        # Pattern-Matches zählen
+                        foreach ($pattern in $errorPatterns) {
+                            if ($pattern -and $errorMessage -match $pattern) {
+                                $metricName = $pattern -replace '[^a-zA-Z0-9_]', '_'
+                                $patternMatches[$metricName.ToLower()]++
+                            }
+                        }
+                    }
+                }
+            }
+            
+            # Basis-Metriken hinzufügen
+            $metricsArray += "afm_errors_total $totalErrors"
+            $metricsArray += "afm_errors_test_total $testErrors"
+            $metricsArray += "afm_errors_other_total $otherErrors"
+            
+            # Pattern-Match Metriken hinzufügen
+            foreach ($key in $patternMatches.Keys) {
+                $metricsArray += "afm_pattern_match_$key $($patternMatches[$key])"
+            }
+            
+            # Zeitbezogene Metriken hinzufügen
+            if ($latestErrorTimestamp -gt 0) {
+                $metricsArray += "afm_last_error_timestamp $latestErrorTimestamp"
+            }
+            
+            # Fehlerrate pro Stunde über die letzten 24 Stunden
+            $now = Get-Date
+            for ($i = 0; $i -lt 24; $i++) {
+                $hourTime = $now.AddHours(-$i)
+                $hourKey = $hourTime.ToString("yyyy-MM-dd HH:00:00")
+                $count = if ($errorsByHour.ContainsKey($hourKey)) { $errorsByHour[$hourKey] } else { 0 }
+                
+                $timestamp = [int][double]::Parse((Get-Date $hourTime -UFormat %s))
+                $metricsArray += "afm_errors_hourly{hour=`"$hourKey`", offset=`"$i`"} $count"
+            }
+            
         } catch {
             Write-Host "Fehler beim Verarbeiten von Error Logs: $_" -ForegroundColor Yellow
         }
@@ -344,7 +449,16 @@ try {
             # Alle Metriken kombinieren
             $allMetrics = @($metricsStatus, $metricsPattern, $metricsInput, $metricsError) | 
                 Where-Object { -not [string]::IsNullOrEmpty($_) }
-            $metrics = $allMetrics -join "`n"
+            try {
+                $metrics = $allMetrics -join "`n"
+            } 
+            catch {
+                Write-Host "Fehler beim Kombinieren der Metriken: $_" -ForegroundColor Red
+                $metrics = "afm_processed_files_total 0`nafm_error_files_total 0`nafm_archived_files_total 0"
+            } 
+            finally {
+                Write-Host "Versuch abgeschlossen, Metriken zu kombinieren." -ForegroundColor Cyan
+            }
 
             $output = [System.Text.Encoding]::UTF8.GetBytes($metrics + "`n")
             $response.ContentType = "text/plain"

@@ -546,16 +546,110 @@
           <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px;">
             <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: var(--secondary-text-color);">Startdatum und -zeit</label>
             <div style="display: flex; align-items: center;">
-              <input class="mdl-textfield__input" type="date" id="startDate" style="margin-right: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
-              <input class="mdl-textfield__input" type="time" id="startTime" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
+              <div style="display: flex; flex-direction: column; margin-right: 8px;">
+                <!-- Aufwärts-Buttons für Datum -->
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('startDate', 1, 'day')">
+                    <i class="material-icons">arrow_upward</i>
+                  </button>
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('startDate', 1, 'month')">
+                    <i class="material-icons">keyboard_arrow_up</i>
+                  </button>
+                </div>
+                
+                <!-- Datumsfeld -->
+                <input class="mdl-textfield__input" type="date" id="startDate" style="margin-bottom: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
+                
+                <!-- Abwärts-Buttons für Datum -->
+                <div style="display: flex; justify-content: space-between;">
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('startDate', -1, 'day')">
+                    <i class="material-icons">arrow_downward</i>
+                  </button>
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('startDate', -1, 'month')">
+                    <i class="material-icons">keyboard_arrow_down</i>
+                  </button>
+                </div>
+              </div>
+              
+              <div style="display: flex; flex-direction: column;">
+                <!-- Aufwärts-Buttons für Zeit -->
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('startTime', 1, 'hour')">
+                    <i class="material-icons">arrow_upward</i>
+                  </button>
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('startTime', 10, 'minute')">
+                    <i class="material-icons">keyboard_arrow_up</i>
+                  </button>
+                </div>
+                
+                <!-- Zeitfeld -->
+                <input class="mdl-textfield__input" type="time" id="startTime" style="margin-bottom: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
+                
+                <!-- Abwärts-Buttons für Zeit -->
+                <div style="display: flex; justify-content: space-between;">
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('startTime', -1, 'hour')">
+                    <i class="material-icons">arrow_downward</i>
+                  </button>
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('startTime', -10, 'minute')">
+                    <i class="material-icons">keyboard_arrow_down</i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           
           <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px;">
             <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: var(--secondary-text-color);">Enddatum und -zeit</label>
             <div style="display: flex; align-items: center;">
-              <input class="mdl-textfield__input" type="date" id="endDate" style="margin-right: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
-              <input class="mdl-textfield__input" type="time" id="endTime" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
+              <div style="display: flex; flex-direction: column; margin-right: 8px;">
+                <!-- Aufwärts-Buttons für Datum -->
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('endDate', 1, 'day')">
+                    <i class="material-icons">arrow_upward</i>
+                  </button>
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('endDate', 1, 'month')">
+                    <i class="material-icons">keyboard_arrow_up</i>
+                  </button>
+                </div>
+                
+                <!-- Datumsfeld -->
+                <input class="mdl-textfield__input" type="date" id="endDate" style="margin-bottom: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
+                
+                <!-- Abwärts-Buttons für Datum -->
+                <div style="display: flex; justify-content: space-between;">
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('endDate', -1, 'day')">
+                    <i class="material-icons">arrow_downward</i>
+                  </button>
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('endDate', -1, 'month')">
+                    <i class="material-icons">keyboard_arrow_down</i>
+                  </button>
+                </div>
+              </div>
+              
+              <div style="display: flex; flex-direction: column;">
+                <!-- Aufwärts-Buttons für Zeit -->
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('endTime', 1, 'hour')">
+                    <i class="material-icons">arrow_upward</i>
+                  </button>
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('endTime', 10, 'minute')">
+                    <i class="material-icons">keyboard_arrow_up</i>
+                  </button>
+                </div>
+                
+                <!-- Zeitfeld -->
+                <input class="mdl-textfield__input" type="time" id="endTime" style="margin-bottom: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
+                
+                <!-- Abwärts-Buttons für Zeit -->
+                <div style="display: flex; justify-content: space-between;">
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('endTime', -1, 'hour')">
+                    <i class="material-icons">arrow_downward</i>
+                  </button>
+                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('endTime', -10, 'minute')">
+                    <i class="material-icons">keyboard_arrow_down</i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -1202,10 +1296,42 @@
         document.getElementById('lastRunTime').textContent = lastRun.Zeitpunkt.split(' ')[1] || '-';
       }
 
-      // Aktuelle Werte für Archiv- und Fehler-Dateien aus dem letzten Eintrag extrahieren
-      if (lastRun) {
-        document.getElementById('archiveFiles').textContent = lastRun['Archiv'] || '0';
-        document.getElementById('errorFiles').textContent = lastRun['Error'] || '0';
+      // Berechne die Summen für den Filterzeitraum
+      if (results.data.length > 0) {
+        // Für Input, Error und Archiv den höchsten Wert im gefilterten Zeitraum nehmen
+        let inputVal = 0;
+        let errorVal = 0;
+        let archiveVal = 0;
+        
+        // Den letzten Eintrag im gefilterten Zeitraum verwenden
+        const lastEntry = results.data[results.data.length - 1];
+        
+        // Werte aus dem letzten Eintrag extrahieren und sicherstellen, dass sie gültige Zahlen sind
+        inputVal = parseInt(lastEntry['Input'] || 0);
+        errorVal = parseInt(lastEntry['Error'] || 0);
+        archiveVal = parseInt(lastEntry['Archiv'] || 0);
+        
+        // Sicherstellen, dass keine negativen Werte verwendet werden
+        inputVal = Math.max(0, inputVal);
+        errorVal = Math.max(0, errorVal);
+        archiveVal = Math.max(0, archiveVal);
+        
+        // Werte anzeigen
+        document.getElementById('inputFiles').textContent = inputVal;
+        document.getElementById('errorFiles').textContent = errorVal;
+        document.getElementById('archiveFiles').textContent = archiveVal;
+        
+        // Gesamtzahl der Dateien berechnen durch einfache Addition
+        const totalFiles = inputVal + errorVal + archiveVal;
+        document.getElementById('totalFiles').textContent = totalFiles;
+        
+        // Fehlerrate berechnen basierend auf den gefilterten Fehlerdaten
+        const errorCount = filteredErrorData.length;
+        const errorRate = totalFiles > 0 ? ((errorCount / totalFiles) * 100).toFixed(1) + '%' : '0%';
+        document.getElementById('errorRate').textContent = errorRate;
+        
+        // Systemstatus aktualisieren
+        updateSystemStatus(errorRate);
       }
 
       // Daten für die Charts vorbereiten
@@ -1346,23 +1472,6 @@
           }
         }
       });
-
-      // Gesamtzahl der Dateien berechnen
-      const lastEntry = results.data[results.data.length - 1];
-      if (lastEntry) {
-        const total = (parseInt(lastEntry['Input'] || 0) + 
-                      parseInt(lastEntry['Error'] || 0) + 
-                      parseInt(lastEntry['Archiv'] || 0));
-        document.getElementById('totalFiles').textContent = total;
-        
-        // Fehlerrate berechnen
-        const errorCount = filteredErrorData.length;
-        const errorRate = total > 0 ? ((errorCount / total) * 100).toFixed(1) + '%' : '0%';
-        document.getElementById('errorRate').textContent = errorRate;
-        
-        // Systemstatus aktualisieren
-        updateSystemStatus(errorRate);
-      }
     }
 
     // Systemstatus aktualisieren
@@ -2288,7 +2397,6 @@ function createErrorHeatmapChart() {
       
       // Fehler nach Muster gruppieren
       const errorsByType = {};
-      let otherErrors = 0;
       
       filteredPatternData.forEach(entry => {
         const pattern = entry.Muster;
@@ -2304,31 +2412,44 @@ function createErrorHeatmapChart() {
       const sortedErrors = Object.entries(errorsByType)
         .sort((a, b) => b[1] - a[1]);
       
-      // Top 5 extrahieren, Rest unter "Sonstige" zusammenfassen
+      // Alle Fehlertypen anzeigen
       const labels = [];
       const data = [];
-      const backgroundColor = [
-        'rgba(255, 99, 132, 0.7)',
-        'rgba(54, 162, 235, 0.7)',
-        'rgba(255, 206, 86, 0.7)',
-        'rgba(75, 192, 192, 0.7)',
-        'rgba(153, 102, 255, 0.7)'
-      ];
       
-      sortedErrors.forEach((error, index) => {
-        if (index < 5) {
-          labels.push(error[0]);
-          data.push(error[1]);
-        } else {
-          otherErrors += error[1];
+      // Dynamisch Farben für beliebig viele Einträge erstellen
+      const generateColors = (count) => {
+        const colors = [];
+        const baseColors = [
+          'rgba(255, 99, 132, 0.7)',
+          'rgba(54, 162, 235, 0.7)',
+          'rgba(255, 206, 86, 0.7)',
+          'rgba(75, 192, 192, 0.7)',
+          'rgba(153, 102, 255, 0.7)',
+          'rgba(255, 159, 64, 0.7)',
+          'rgba(201, 203, 207, 0.7)',
+          'rgba(119, 221, 119, 0.7)',
+          'rgba(179, 106, 200, 0.7)',
+          'rgba(225, 123, 36, 0.7)'
+        ];
+        
+        // Verwende die Basisfarben für die ersten Einträge
+        for (let i = 0; i < count; i++) {
+          if (i < baseColors.length) {
+            colors.push(baseColors[i]);
+          } else {
+            // Für weitere Einträge generiere Farben basierend auf Position
+            const hue = (i * 137.508) % 360; // Goldener Schnitt für gute Farbverteilung
+            colors.push(`hsla(${hue}, 70%, 60%, 0.7)`);
+          }
         }
-      });
+        
+        return colors;
+      };
       
-      if (otherErrors > 0) {
-        labels.push('Sonstige');
-        data.push(otherErrors);
-        backgroundColor.push('rgba(201, 203, 207, 0.7)');
-      }
+      sortedErrors.forEach((error) => {
+        labels.push(error[0]);
+        data.push(error[1]);
+      });
       
       // Chart erstellen
       const ctx = document.getElementById('errorTypePieChart').getContext('2d');
@@ -2342,7 +2463,7 @@ function createErrorHeatmapChart() {
           labels: labels,
           datasets: [{
             data: data,
-            backgroundColor: backgroundColor,
+            backgroundColor: generateColors(labels.length),
             borderWidth: 1
           }]
         },
@@ -2392,6 +2513,43 @@ function createErrorHeatmapChart() {
         document.documentElement.setAttribute('data-theme', 'light');
       }
     });
+
+    // Datum anpassen
+    function adjustDate(inputId, amount, unit) {
+      const input = document.getElementById(inputId);
+      if (!input || !input.value) return;
+
+      const currentDate = new Date(input.value);
+      if (unit === 'day') {
+        currentDate.setDate(currentDate.getDate() + amount);
+      } else if (unit === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + amount);
+      }
+
+      input.value = currentDate.toISOString().split('T')[0];
+      applyDateFilter();
+    }
+
+    // Zeit anpassen
+    function adjustTime(inputId, amount, unit) {
+      const input = document.getElementById(inputId);
+      if (!input || !input.value) return;
+
+      const [hours, minutes] = input.value.split(':').map(num => parseInt(num));
+      const currentTime = new Date();
+      currentTime.setHours(hours, minutes, 0);
+
+      if (unit === 'hour') {
+        currentTime.setHours(currentTime.getHours() + amount);
+      } else if (unit === 'minute') {
+        currentTime.setMinutes(currentTime.getMinutes() + amount);
+      }
+
+      const adjustedHours = currentTime.getHours().toString().padStart(2, '0');
+      const adjustedMinutes = currentTime.getMinutes().toString().padStart(2, '0');
+      input.value = `${adjustedHours}:${adjustedMinutes}`;
+      applyDateFilter();
+    }
   </script>
 </body>
 </html>
