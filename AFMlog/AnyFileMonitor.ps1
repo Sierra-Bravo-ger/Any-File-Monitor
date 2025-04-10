@@ -1,12 +1,15 @@
-# AnyFileMonitor (AFM) Hauptskript
+﻿# AnyFileMonitor (AFM) Hauptskript
 
 # Konfig einlesen
 $configPath = Join-Path $PSScriptRoot 'config.ini'
 $config = @{}
-Get-Content $configPath | Where-Object { $_ -match '=' } | ForEach-Object {
+Get-Content $configPath -Encoding default | Where-Object { $_ -match '=' -and -not $_.Trim().StartsWith('#') -and -not $_.Trim().StartsWith(';') } | ForEach-Object {
     $parts = $_ -split '=', 2
     $config[$parts[0].Trim()] = $parts[1].Trim()
 }
+
+# Debug-Ausgabe für die geladene Konfiguration
+Write-Host "Geladene Konfiguration aus $configPath" -ForegroundColor Cyan
 
 # Pfade aus Konfig
 $inputPath = $config['inputPath']
@@ -29,6 +32,26 @@ if ($config.ContainsKey('fileExtensions')) {
 $errorPatterns = @()
 if ($config.ContainsKey('errorPatterns')) {
     $errorPatterns = ($config['errorPatterns'] -split ',') | ForEach-Object { $_.Trim() }
+    
+    # Debug-Ausgabe der erkannten Muster
+    Write-Host "Geladene Fehlermuster:" -ForegroundColor Cyan
+    foreach ($pattern in $errorPatterns) {
+        Write-Host "  - '$pattern'" -ForegroundColor Yellow
+    }
+}
+
+# Ausnahme-Patterns aus config laden
+$excludePatterns = @()
+if ($config.ContainsKey('excludePatterns')) {
+    $excludePatterns = ($config['excludePatterns'] -split ',') | ForEach-Object { $_.Trim() }
+    
+    # Debug-Ausgabe der Ausschluss-Muster
+    if ($excludePatterns.Count -gt 0) {
+        Write-Host "Geladene Ausschlussmuster:" -ForegroundColor Cyan
+        foreach ($pattern in $excludePatterns) {
+            Write-Host "  - '$pattern'" -ForegroundColor Yellow
+        }
+    }
 }
 
 # E-Mail-Konfiguration aus config.ini laden
@@ -57,16 +80,16 @@ $patternLogPath = Join-Path $PSScriptRoot "AFM_pattern_matches.csv"
 
 # Sicherstellen, dass Logdateien existieren
 if (!(Test-Path $statusLog)) {
-    "Zeitpunkt;Input;Archiv;Error" | Out-File -FilePath $statusLog -Encoding UTF8
+    "Zeitpunkt;Input;Archiv;Error" | Out-File -FilePath $statusLog -Encoding utf8
 }
 if (!(Test-Path $errorLog)) {
-    "Zeitpunkt;ErrorDatei;Fehlermeldung;EXTDatei;EXTInhalt" | Out-File -FilePath $errorLog -Encoding UTF8
+    "Zeitpunkt;ErrorDatei;Fehlermeldung;EXTDatei;EXTInhalt" | Out-File -FilePath $errorLog -Encoding utf8
 }
 if (!(Test-Path $seenList)) {
     New-Item $seenList -ItemType File -Force | Out-Null
 }
 if (!(Test-Path $inputDetailLog)) {
-    "Zeitpunkt;Anzahl;Dateinamen als String" | Out-File -FilePath $inputDetailLog -Encoding UTF8
+    "Zeitpunkt;Anzahl;Dateinamen als String" | Out-File -FilePath $inputDetailLog -Encoding utf8
 }
 
 # Vorher gesehene Dateien laden (für Error-Verarbeitung)
@@ -161,10 +184,10 @@ $errorFiles = Get-ChildItem -Path $errorPath -File -ErrorAction SilentlyContinue
 $errorCount = $errorFiles.Count
 
 # Status-Log aktualisieren
-"$timestamp;$inputCount;$archivCount;$errorCount" | Out-File -Append -FilePath $statusLog -Encoding UTF8
+"$timestamp;$inputCount;$archivCount;$errorCount" | Out-File -Append -FilePath $statusLog -Encoding utf8
 
 # Input-Detail-Log aktualisieren
-"$timestamp;$inputCount;$inputFileNamesForLog" | Out-File -Append -FilePath $inputDetailLog -Encoding UTF8
+"$timestamp;$inputCount;$inputFileNamesForLog" | Out-File -Append -FilePath $inputDetailLog -Encoding utf8
 
 # Nachträgliche Fehlerverarbeitung (nur für Dateien, die noch nicht gesehen wurden und älter als 1 Minute sind)
 
@@ -217,38 +240,45 @@ foreach ($errFile in $errorFilesForProcessing) {
         }
 
         # Fehlerlog schreiben
-        "$timestamp;$errorFilename;$errorText;$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding UTF8
+        "$timestamp;$errorFilename;$errorText;$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding default
 
-# Ausnahme-Patterns aus config laden
-$excludePatterns = @()
-if ($config.ContainsKey('excludePatterns')) {
-    $excludePatterns = ($config['excludePatterns'] -split ',') | ForEach-Object { $_.Trim() }
-}
-
-# Bei der Musterprüfung:
-foreach ($pattern in $errorPatterns) {
-    if ($errorText -match $pattern) {
-        # Prüfen, ob eine Ausnahme zutrifft
-        $isExcluded = $false
-        foreach ($excludePattern in $excludePatterns) {
-            if ($errorText -match $excludePattern) {
-                $isExcluded = $true
-                break
+        # Bei der Musterprüfung mit verbessertem Debugging
+        foreach ($pattern in $errorPatterns) {
+            # Debug-Ausgabe für den aktuellen Text und das Muster
+            Write-Host "Prüfe Muster: '$pattern' gegen Text: '$errorText'" -ForegroundColor DarkGray
+            
+            # Erweiterte Prüfung mit mehreren Methoden
+            $containsMatch = $errorText.Contains($pattern)
+            $indexMatch = $errorText.IndexOf($pattern)
+            
+            Write-Host "  Contains: $containsMatch, Index: $indexMatch" -ForegroundColor DarkGray
+            
+            if ($containsMatch -or $indexMatch -ge 0) {
+                Write-Host "  TREFFER GEFUNDEN für Muster: '$pattern' in: '$errorText'" -ForegroundColor Green
+                
+                # Prüfen, ob eine Ausnahme zutrifft
+                $isExcluded = $false
+                foreach ($excludePattern in $excludePatterns) {
+                    if ($errorText.Contains($excludePattern)) {
+                        $isExcluded = $true
+                        Write-Host "  AUSSCHLUSS durch Muster: '$excludePattern'" -ForegroundColor Yellow
+                        break
+                    }
+                }
+                
+                # Nur wenn keine Ausnahme zutrifft, als Treffer zählen
+                if (-not $isExcluded) {
+                    $patternMatches += [PSCustomObject]@{
+                        Zeitpunkt = $timestamp
+                        Datei = $errorFilename
+                        Muster = $pattern
+                        Text = $errorText
+                    }
+                    Write-Host "  Muster wird als Treffer gezählt!" -ForegroundColor Green
+                    break  # Ein Treffer pro Datei reicht
+                }
             }
         }
-        
-        # Nur wenn keine Ausnahme zutrifft, als Treffer zählen
-        if (-not $isExcluded) {
-            $patternMatches += [PSCustomObject]@{
-                Zeitpunkt = $timestamp
-                Datei = $errorFilename
-                Muster = $pattern
-                Text = $errorText
-            }
-            break  # Ein Treffer pro Datei reicht
-        }
-    }
-}
 
         # Gesehen-Liste aktualisieren
         Add-Content $seenList $errorFilename
@@ -279,7 +309,7 @@ foreach ($extFile in $extFilesForProcessing) {
         if ($extText.Length -gt 1500) { $extText = $extText.Substring(0,1500) }
 
         # Fehlerlog schreiben
-        "$timestamp;[Keine error-Datei gefunden];[Kein Fehlertext verfügbar];$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding UTF8
+        "$timestamp;[Keine error-Datei gefunden];[Kein Fehlertext verfügbar];$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding utf8
 
         # Gesehen-Liste aktualisieren
         Add-Content $seenList $extFilename
@@ -301,7 +331,7 @@ foreach ($otherFile in $otherFilesForProcessing) {
         if ($fileContent.Length -gt 1500) { $fileContent = $fileContent.Substring(0,1500) }
         
         # Fehlerlog schreiben
-        "$timestamp;[Keine error-Datei gefunden];[Kein Fehlertext verfügbar];$filename;$fileContent" | Out-File -FilePath $errorLog -Append -Encoding UTF8
+        "$timestamp;[Keine error-Datei gefunden];[Kein Fehlertext verfügbar];$filename;$fileContent" | Out-File -FilePath $errorLog -Append -Encoding utf8
         
         # Prüfen, ob der Dateiinhalt einen der konfigurierten RegEx-Ausdrücke enthält
         foreach ($pattern in $errorPatterns) {
@@ -328,12 +358,12 @@ foreach ($otherFile in $otherFilesForProcessing) {
 if ($patternMatches.Count -gt 0) {
     # Überschrift erstellen, falls die Datei noch nicht existiert
     if (!(Test-Path $patternLogPath)) {
-        "Zeitpunkt;Datei;Muster;Text" | Out-File -FilePath $patternLogPath -Encoding UTF8
+        "Zeitpunkt;Datei;Muster;Text" | Out-File -FilePath $patternLogPath -Encoding utf8
     }
     
     # Treffer ins Log schreiben
     foreach ($match in $patternMatches) {
-        "$($match.Zeitpunkt);$($match.Datei);$($match.Muster);$($match.Text)" | Out-File -FilePath $patternLogPath -Append -Encoding UTF8
+        "$($match.Zeitpunkt);$($match.Datei);$($match.Muster);$($match.Text)" | Out-File -FilePath $patternLogPath -Append -Encoding utf8
     }
     
     # Ausgabe der Anzahl gefundener Muster

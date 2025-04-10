@@ -1,4 +1,4 @@
-# LIS_Simulator.ps1
+﻿# LIS_Simulator.ps1
 # Script to simulate the behavior of the interface by moving files from INPUT to ARCHIV
 # and occasionally generating error files in ARCHIV\ERROR
 
@@ -61,8 +61,14 @@ Write-Host "Monitoring path: $inputPath"
 Write-Host "Archive path: $archivPath"
 Write-Host "Error path: $errorPath"
 Write-Host "Press Ctrl+C to stop the simulation"
+Write-Host "Press Ctrl+X to toggle the 'Zeitüberschreitung Test Modus'" -ForegroundColor Yellow
 Write-Host ""
 
+# Variable für den "Zeitüberschreitung Test Modus"
+$zeitUeberschreitungModus = $false
+
+# Keyboard-Hook für Strg+X einrichten
+$Host.UI.RawUI.FlushInputBuffer()
 $fileCounter = 0
 $errorCounter = 0
 $nextErrorAfter = Get-Random -Minimum 30 -Maximum 46
@@ -70,6 +76,21 @@ $lastQueueFileTime = [DateTime]::MinValue
 
 try {
     while ($true) {
+        # Überprüfen, ob Strg+X gedrückt wurde
+        if ([Console]::KeyAvailable) {
+            $key = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+            if ($key.VirtualKeyCode -eq 88 -and $key.ControlKeyState -band 0x0008) {  # X = 88, Ctrl = 0x0008
+                $zeitUeberschreitungModus = -not $zeitUeberschreitungModus
+                if ($zeitUeberschreitungModus) {
+                    Write-Host "ZEITÜBERSCHREITUNG TEST MODUS AKTIVIERT - Alle Fehler werden 'Zeitüberschreitung' sein" -ForegroundColor Magenta -BackgroundColor Black
+                } else {
+                    Write-Host "Zeitüberschreitung Test Modus deaktiviert - Zurück zum normalen Betrieb" -ForegroundColor Green
+                }
+            }
+            # Tastatureingabe verarbeiten, um Buffer zu leeren
+            $Host.UI.RawUI.FlushInputBuffer()
+        }
+
         # NEUE LOGIK: Bewegen einer Datei von Queue zu INPUT alle 10 Sekunden
         $currentTime = Get-Date
         $timeElapsed = $currentTime - $lastQueueFileTime
@@ -101,21 +122,34 @@ try {
                 $errorCounter++
                 Write-Host "Files processed: $fileCounter, Next error after: $nextErrorAfter files, Current count: $errorCounter" -ForegroundColor Cyan
                 
-                if ($errorCounter -ge $nextErrorAfter) {
+                # Prüfen, ob Zeitüberschreitung-Modus aktiv ist oder ob der normale Fehlerzähler erreicht ist
+                if ($zeitUeberschreitungModus -or $errorCounter -ge $nextErrorAfter) {
                     # Move file to ERROR directory
                     $targetPath = Join-Path $errorPath $file.Name
                     Move-Item -Path $file.FullName -Destination $targetPath -Force
                     
-                    # Create .error file
-                    $errorContent = $errorPatterns | Get-Random
-                    $errorFilePath = Join-Path $errorPath "$($file.BaseName).error"
-                    Set-Content -Path $errorFilePath -Value $errorContent
+                    # Create .error file mit fester Fehlermeldung oder zufälligem Inhalt
+                    $errorContent = if ($zeitUeberschreitungModus) {
+                        "Zeitüberschreitung"  # Im Testmodus immer diese Meldung verwenden
+                    } else {
+                        $errorPatterns | Get-Random  # Im Normalmodus zufälliges Muster wählen
+                    }
                     
-                    Write-Host "ERROR: File $($file.Name) moved to error directory. Error: $errorContent" -ForegroundColor Red
+                    $errorFilePath = Join-Path $errorPath "$($file.BaseName).error"
+                    Set-Content -Path $errorFilePath -Value $errorContent -Encoding default
+                    
+                    if ($zeitUeberschreitungModus) {
+                        Write-Host "TEST MODUS: File $($file.Name) moved to error directory. Error: $errorContent" -ForegroundColor Magenta
+                    } else {
+                        Write-Host "ERROR: File $($file.Name) moved to error directory. Error: $errorContent" -ForegroundColor Red
+                    }
                     
                     # Zurücksetzen des Fehlerzählers und Generieren eines neuen Schwellenwerts
-                    $errorCounter = 0
-                    $nextErrorAfter = Get-Random -Minimum 30 -Maximum 46
+                    # Nur im Normalmodus, im Zeitüberschreitung-Modus wird immer ein Fehler erzeugt
+                    if (-not $zeitUeberschreitungModus) {
+                        $errorCounter = 0
+                        $nextErrorAfter = Get-Random -Minimum 30 -Maximum 46
+                    }
                 } else {
                     # Normal case - move to archive
                     $targetPath = Join-Path $archivPath $file.Name

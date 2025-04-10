@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="de" data-theme="dark">
 <head>
   <meta charset="UTF-8">
@@ -833,25 +833,25 @@
             <div class="mdl-cell mdl-cell--3-col">
               <div class="kpi-card">
                 <div class="kpi-label">
-                  MTBF
+                  Fehlerintensität
                   <span class="tooltip">
                     <i class="material-icons info-icon">info_outline</i>
-                    <span class="tooltiptext">Mean Time Between Failures (Durchschnittliche Zeit zwischen Fehlern)</span>
+                    <span class="tooltiptext">Durchschnittliche Anzahl der Fehler pro Stunde im ausgewählten Zeitraum</span>
                   </span>
                 </div>
-                <div class="kpi-value" id="mtbf">-</div>
+                <div class="kpi-value" id="errorIntensityKPI">-</div>
               </div>
             </div>
             <div class="mdl-cell mdl-cell--3-col">
               <div class="kpi-card">
                 <div class="kpi-label">
-                  Muster-Erkennungsrate
+                  Fehlertrend
                   <span class="tooltip">
                     <i class="material-icons info-icon">info_outline</i>
-                    <span class="tooltiptext">Prozentsatz der Fehler, die einem bekannten Muster zugeordnet werden können</span>
+                    <span class="tooltiptext">Prozentuale Veränderung der Fehleranzahl im Vergleich zum vorherigen Zeitraum</span>
                   </span>
                 </div>
-                <div class="kpi-value" id="patternRecognitionRate">-</div>
+                <div class="kpi-value" id="errorTrendKPI">-</div>
               </div>
             </div>
           </div>
@@ -944,10 +944,10 @@
             </div>
           </div>
           
-          <!-- Fehler-Heatmap -->
+          <!-- Fehler-Verteilung nach Wochentagen -->
           <div class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
-              <h2 class="mdl-card__title-text">Fehler-Heatmap (Wochentag & Uhrzeit)</h2>
+              <h2 class="mdl-card__title-text">Fehlertypen nach Wochentagen</h2>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
@@ -1055,16 +1055,53 @@
     let startTimeFilter = null;
     let endTimeFilter = null;
     
-    // Bekannte Fehlermuster aus config.ini
-    const knownErrorPatterns = [
-      "Timeout", 
-      "Zeitüberschreitung", 
-      "Verbindung vom peer", 
-      "multiple Rows in singleton select", 
-      "deadlock", 
-      "lock conflict on no wait transaction",
-      "nicht definiert"
-    ];
+    // Bekannte Fehlermuster aus config.ini - wird dynamisch geladen
+    let knownErrorPatterns = [];
+
+    // Konfiguration aus config.ini laden
+    function loadConfig() {
+      fetch('./config.ini')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Fehler beim Laden der Konfiguration');
+          }
+          return response.text();
+        })
+        .then(configText => {
+          // config.ini parsen
+          const configLines = configText.split('\n');
+          let errorPatterns = '';
+          
+          // Nach der errorPatterns-Zeile suchen
+          for (const line of configLines) {
+            if (line.trim().startsWith('errorPatterns=')) {
+              errorPatterns = line.trim().substring('errorPatterns='.length);
+              break;
+            }
+          }
+          
+          // Muster aufteilen und in Array speichern
+          knownErrorPatterns = errorPatterns.split(',').map(pattern => pattern.trim());
+          console.log('Geladene Fehlermuster:', knownErrorPatterns);
+          
+          // Nach dem Laden der Konfiguration die Daten aktualisieren
+          loadAllData();
+        })
+        .catch(error => {
+          console.error('Fehler beim Laden der config.ini:', error);
+          // Fallback zu Default-Werten
+          knownErrorPatterns = [
+            "Timeout", 
+            "Zeitüberschreitung", 
+            "Verbindung vom peer", 
+            "multiple Rows in singleton select", 
+            "deadlock", 
+            "lock conflict on no wait transaction",
+            "nicht definiert"
+          ];
+          loadAllData();
+        });
+    }
 
     // Datumsfilter initialisieren
     function initDateFilter() {
@@ -1267,7 +1304,7 @@
       updateTopErrorsList();
       updateSystemHealthGauge();
       createErrorsByWeekdayChart();
-      createErrorHeatmapChart(); // Neue Heatmap-Funktion
+      createErrorsByWeekdayStackedChart(); // Neue Funktion
     }
 
     function loadCSV(file, callback) {
@@ -1562,50 +1599,83 @@
     // KPIs berechnen
     function calculateKPIs() {
       if (filteredStatusData.length < 2) return;
-      
-      // Durchsatz-Berechnung mit der neuen Methode
+
+      // Fehlerintensität (Fehler pro Stunde)
+      function calculateErrorIntensity() {
+        if (filteredErrorData.length === 0) return "0";
+
+        const startTime = startDateFilter ? startDateFilter.getTime() : new Date(filteredErrorData[0].Zeitpunkt).getTime();
+        const endTime = endDateFilter ? endDateFilter.getTime() : new Date(filteredErrorData[filteredErrorData.length - 1].Zeitpunkt).getTime();
+
+        const hours = Math.max(0.01, (endTime - startTime) / (1000 * 60 * 60));
+        return (filteredErrorData.length / hours).toFixed(1);
+      }
+
+      // Fehlertrend (prozentuale Veränderung zum vorherigen Zeitraum)
+      function calculateErrorTrend() {
+        if (filteredErrorData.length === 0 || !startDateFilter || !endDateFilter) return "0%";
+
+        const currentPeriodLength = endDateFilter.getTime() - startDateFilter.getTime();
+        const prevPeriodStart = new Date(startDateFilter.getTime() - currentPeriodLength);
+        const prevPeriodEnd = new Date(startDateFilter.getTime());
+
+        const currentErrors = filteredErrorData.length;
+        const prevErrors = allErrorData.filter(entry => {
+          if (!entry.Zeitpunkt) return false;
+          const timestamp = new Date(entry.Zeitpunkt).getTime();
+          return timestamp >= prevPeriodStart.getTime() && timestamp <= prevPeriodEnd.getTime();
+        }).length;
+
+        if (prevErrors === 0 && currentErrors === 0) return "0%";
+        if (prevErrors === 0) return currentErrors > 0 ? "+∞%" : "0%";
+
+        const change = ((currentErrors - prevErrors) / prevErrors) * 100;
+        const sign = change > 0 ? "+" : "";
+        return `${sign}${change.toFixed(1)}%`;
+      }
+
+      // Fehlerintensität berechnen und anzeigen
+      const errorIntensity = calculateErrorIntensity();
+      document.getElementById('errorIntensityKPI').textContent = errorIntensity;
+
+      // Fehlertrend berechnen und anzeigen
+      const errorTrend = calculateErrorTrend();
+      document.getElementById('errorTrendKPI').textContent = errorTrend;
+
+      // Durchsatz-Berechnung
       const throughputPerHour = calculateThroughput(filteredStatusData);
       document.getElementById('throughput').textContent = throughputPerHour;
       
-      // Fehler-zu-Archiv-Verhältnis (umgekehrt im Vergleich zur vorherigen Berechnung)
+      // Archiv zu Fehler Verhältnis
       const lastEntry = filteredStatusData[filteredStatusData.length - 1];
       const archiveCount = parseInt(lastEntry['Archiv'] || 0);
       const errorCount = parseInt(lastEntry['Error'] || 0);
-      let ratio = archiveCount > 0 ? ((errorCount / archiveCount) * 100).toFixed(1) + '%' : '∞';
+      
+      let ratio;
+      if (errorCount === 0 && archiveCount === 0) {
+        ratio = "N/A";
+      } else if (errorCount === 0) {
+        ratio = "∞";
+      } else if (archiveCount === 0) {
+        ratio = "0:1";
+      } else {
+        const gcd = findGCD(archiveCount, errorCount);
+        ratio = (archiveCount / gcd) + ":" + (errorCount / gcd);
+      }
+      
       document.getElementById('archiveToErrorRatio').textContent = ratio;
-      
-      // MTBF (Mean Time Between Failures)
-      // Annahme: Jeder Eintrag in filteredStatusData stellt einen Zeitpunkt dar
-      // und die Anzahl der Fehler hat sich seit dem letzten Eintrag um die Differenz geändert
-      let totalHours = filteredStatusData.length;
-      let totalErrors = 0;
-      
-      if (filteredStatusData.length > 1) {
-        const firstEntry = filteredStatusData[0];
-        const firstErrorCount = parseInt(firstEntry['Error'] || 0);
-        totalErrors = errorCount - firstErrorCount;
-      } else {
-        totalErrors = errorCount;
+    }
+    
+    // Größter gemeinsamer Teiler für Verhältnisberechnung
+    function findGCD(a, b) {
+      a = Math.abs(a);
+      b = Math.abs(b);
+      while(b) {
+        let t = b;
+        b = a % b;
+        a = t;
       }
-      
-      const mtbf = totalErrors > 0 ? (totalHours / totalErrors).toFixed(1) + 'h' : '∞';
-      document.getElementById('mtbf').textContent = mtbf;
-      
-      // Muster-Erkennungsrate - Korrigiert
-      // Direkter Vergleich zwischen erkannten Mustern und Fehlern
-      const actualErrorCount = filteredErrorData.length;
-      const patternMatchCount = filteredPatternData.length;
-      
-      // Wenn Muster und Fehler identisch sind (beide > 0), dann 100%
-      // Sonst das tatsächliche Verhältnis
-      let patternRecognitionRate;
-      if (actualErrorCount > 0) {
-        patternRecognitionRate = Math.min(100, Math.round((patternMatchCount / actualErrorCount) * 100)) + '%';
-      } else {
-        patternRecognitionRate = '0%';
-      }
-      
-      document.getElementById('patternRecognitionRate').textContent = patternRecognitionRate;
+      return a;
     }
 
     // Fehler-Trend nach Typ erstellen
@@ -1939,244 +2009,150 @@
       });
     }
 
-// Verbesserte Fehler-Heatmap nach Wochentag und Stunde erstellen
-function createErrorHeatmapChart() {
-  if (filteredErrorData.length === 0) return;
-  
-  // Properly destroy existing chart if it exists
-  if (window.errorHeatmapChart instanceof Chart) {
-    window.errorHeatmapChart.destroy();
-    window.errorHeatmapChart = null;
-  }
-  
-  const ctx = document.getElementById('errorHeatmapChart').getContext('2d');
-  
-  // 2D-Array für die Heatmap erstellen (7 Wochentage x 24 Stunden)
-  const heatmapData = Array(7).fill().map(() => Array(24).fill(0));
-  
-  // Wochentagsnamen für die y-Achse
-  const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-  
-  // Stunden für die x-Achse
-  const hours = Array.from({length: 24}, (_, i) => `${i}:00`);
-  
-  // Fehler nach Wochentag und Stunde zählen
-  filteredErrorData.forEach(entry => {
-    if (entry.Zeitpunkt) {
-      const [datePart, timePart] = entry.Zeitpunkt.split(' ');
-      const [year, month, day] = datePart.split('-').map(num => parseInt(num));
-      const hour = parseInt(timePart.split(':')[0]);
+    // Fehlertypen nach Wochentag als gestapeltes Balkendiagramm
+    function createErrorsByWeekdayStackedChart() {
+      // Genau dieselbe Logik wie bei updateTopErrorsList() verwenden
+      if (filteredPatternData.length === 0) return;
       
-      if (!isNaN(hour) && hour >= 0 && hour < 24) {
-        const date = new Date(year, month - 1, day);
-        const weekday = date.getDay();
-        heatmapData[weekday][hour]++;
+      // Bestehendes Diagramm zerstören, falls vorhanden
+      if (window.errorsByWeekdayChart instanceof Chart) {
+        window.errorsByWeekdayChart.destroy();
+        window.errorsByWeekdayChart = null;
       }
-    }
-  });
-  
-  // Alle Datenpunkte in ein flaches Array umwandeln für die Heatmap
-  const data = [];
-  heatmapData.forEach((dayData, dayIndex) => {
-    dayData.forEach((value, hourIndex) => {
-      data.push({
-        x: hourIndex,
-        y: dayIndex,
-        v: value
-      });
-    });
-  });
-  
-  // Calculate max value for scaling
-  const maxValue = Math.max(...data.map(d => d.v), 1);
-  
-  // Der Hauptunterschied: Statt scatter Plot verwenden wir matrix mit Colors
-  try {
-    window.errorHeatmapChart = new Chart(ctx, {
-      type: 'matrix',
-      data: {
-        datasets: [{
-          label: 'Fehler-Heatmap',
-          data: data,
-          borderWidth: 1,
-          borderColor: 'rgba(0, 0, 0, 0.2)',
-          backgroundColor: function(context) {
-            if (!context.raw) return 'rgba(220, 220, 220, 0.5)';
-            const value = context.raw.v || 0;
-            
-            if (value === 0) return 'rgba(240, 240, 240, 0.8)';
-            
-            // Logarithmische Farbskala für bessere Unterscheidung
-            const logBase = 1.5;
-            const logMax = Math.log(maxValue + 1) / Math.log(logBase);
-            const logValue = Math.log(value + 1) / Math.log(logBase);
-            const normalizedValue = logValue / logMax;
-            
-            // Farbübergang: weiß → gelb → orange → rot
-            if (normalizedValue < 0.25) {
-              return `rgba(255, 255, ${Math.floor(255 - normalizedValue * 4 * 255)}, 0.8)`;
-            } else if (normalizedValue < 0.5) {
-              return `rgba(255, ${Math.floor(255 - (normalizedValue - 0.25) * 4 * 255)}, 0, 0.8)`;
-            } else {
-              const intensity = 0.5 + 0.5 * normalizedValue;
-              return `rgba(${Math.floor(255 * intensity)}, 0, 0, 0.8)`;
-            }
-          },
-          width: function() {
-            return 25; // Konstante Zellbreite
-          },
-          height: function() {
-            return 25; // Konstante Zellhöhe
-          }
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          tooltip: {
-            callbacks: {
-              title: function(context) {
-                const x = context[0].raw.x;
-                const y = context[0].raw.y;
-                return `${weekdays[y]}, ${hours[x]}`;
-              },
-              label: function(context) {
-                return `Fehler: ${context.raw.v}`;
-              }
-            }
-          },
-          legend: {
-            display: false
-          },
-          title: {
-            display: true,
-            text: 'Fehler-Heatmap nach Wochentag und Uhrzeit',
-            font: {
-              size: 16
-            }
-          }
-        },
-        scales: {
-          x: {
-            type: 'category',
-            labels: hours,
-            position: 'top',
-            offset: true,
-            ticks: {
-              autoSkip: false,
-              maxRotation: 90,
-              minRotation: 90
-            },
-            title: {
-              display: true,
-              text: 'Stunde des Tages'
-            },
-            grid: {
-              display: false
-            }
-          },
-          y: {
-            type: 'category',
-            labels: weekdays,
-            offset: true,
-            reverse: true,
-            title: {
-              display: true,
-              text: 'Wochentag'
-            },
-            grid: {
-              display: false
-            }
-          }
+      
+      const ctx = document.getElementById('errorHeatmapChart').getContext('2d');
+      
+      // Fehler nach Muster gruppieren und zählen, genau wie bei der Top-Fehler-Liste
+      const errorsByType = {};
+      filteredPatternData.forEach(entry => {
+        const pattern = entry.Muster;
+        if (!errorsByType[pattern]) {
+          errorsByType[pattern] = {
+            total: 0,
+            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // So, Mo, Di, Mi, Do, Fr, Sa
+          };
         }
-      }
-    });
-  } catch (error) {
-    console.error("Error creating heatmap chart:", error);
-    
-    // Fallback: Wenn Matrix-Typ nicht verfügbar ist, verwenden wir einen angepassten Scatter-Plot
-    try {
-      window.errorHeatmapChart = new Chart(ctx, {
-        type: 'scatter',
-        data: {
-          datasets: [{
-            label: 'Fehler-Heatmap',
-            data: data.map(d => ({ 
-              x: hours[d.x], 
-              y: weekdays[d.y], 
-              v: d.v
-            })),
-            backgroundColor: function(context) {
-              if (!context.raw) return 'rgba(220, 220, 220, 0.5)';
-              const value = context.raw.v || 0;
-              
-              if (value === 0) return 'rgba(240, 240, 240, 0.8)';
-              
-              // Logarithmische Skala für besseren Farbverlauf
-              const logBase = 1.5;
-              const logMax = Math.log(maxValue + 1) / Math.log(logBase);
-              const logValue = Math.log(value + 1) / Math.log(logBase);
-              const normalizedValue = logValue / logMax;
-              
-              return `rgba(255, ${Math.round(100 - normalizedValue * 100)}, ${Math.round(100 - normalizedValue * 100)}, 0.7)`;
-            },
-            pointRadius: 15, // Konstante Größe statt variabler Größe
-            pointHoverRadius: 18
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              type: 'category',
-              position: 'top',
-              title: {
-                display: true,
-                text: 'Stunde des Tages'
+        
+        // Gesamtzahl für den Fehlertyp erhöhen
+        errorsByType[pattern].total++;
+        
+        // Wochentag bestimmen und entsprechenden Zähler erhöhen
+        if (entry.Zeitpunkt) {
+          const [datePart] = entry.Zeitpunkt.split(' ');
+          const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+          const date = new Date(year, month - 1, day);
+          const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
+          errorsByType[pattern].byWeekday[weekday]++;
+        }
+      });
+      
+      // Nach Gesamtzahl sortieren, genau wie bei der Top-Fehler-Liste
+      const sortedErrors = Object.entries(errorsByType)
+        .sort((a, b) => b[1].total - a[1].total);
+      
+      console.log("Fehlerverteilung nach Muster:", sortedErrors);
+      
+      // Bis zu 10 häufigste Fehler für das Diagramm verwenden
+      const topErrors = sortedErrors.slice(0, 10);
+      const labels = topErrors.map(err => err[0]); // Fehlermuster
+      
+      // Transformiere die Daten für das gestapelte Balkendiagramm
+      // (7 Wochentage x bis zu 10 Fehlertypen)
+      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+      const datasets = [];
+      
+      // Kräftigere Farben für die Fehlertypen
+      const colors = [
+        'rgba(102, 153, 204, 0.85)',   // Kräftigeres Blau
+        'rgba(140, 140, 140, 0.85)',   // Dunkleres Grau
+        'rgba(120, 177, 120, 0.85)',   // Kräftigeres Grün
+        'rgba(204, 120, 120, 0.85)',   // Kräftigeres Rosa
+        'rgba(160, 120, 204, 0.85)',   // Kräftigeres Lila
+        'rgba(204, 180, 80, 0.85)',    // Kräftigeres Gelb
+        'rgba(80, 180, 204, 0.85)',    // Kräftigeres Türkis
+        'rgba(194, 135, 80, 0.85)',    // Kräftigeres Hellbraun
+        'rgba(110, 150, 204, 0.85)',   // Kräftigeres Hellblau
+        'rgba(204, 160, 110, 0.85)'    // Kräftigeres Sand
+      ];
+      
+      // Für jeden Fehlertyp ein Dataset erstellen
+      topErrors.forEach((error, index) => {
+        const [errorType, data] = error;
+        const color = colors[index % colors.length]; // Verwende die kräftigeren Farben
+        
+        datasets.push({
+          label: errorType,
+          data: data.byWeekday,
+          backgroundColor: color,
+          borderColor: color.replace('0.85)', '1)'),
+          borderWidth: 1
+        });
+      });
+      
+      try {
+        // Erzeuge ein gestapeltes Balkendiagramm für die Fehlerverteilung nach Wochentag
+        window.errorsByWeekdayChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: weekdays,
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: 'Wochentag'
+                },
+                stacked: true
               },
-              ticks: {
-                autoSkip: false,
-                maxRotation: 90,
-                minRotation: 90
+              y: {
+                title: {
+                  display: true,
+                  text: 'Anzahl der Fehler'
+                },
+                stacked: true,
+                beginAtZero: true
               }
             },
-            y: {
-              type: 'category',
+            plugins: {
               title: {
                 display: true,
-                text: 'Wochentag'
+                text: 'Fehlertypen nach Wochentagen',
+                font: {
+                  size: 16
+                }
               },
-              reverse: true
-            }
-          },
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  return `${context.raw.y}, ${context.raw.x}: ${context.raw.v} Fehler`;
+              tooltip: {
+                callbacks: {
+                  title: function(context) {
+                    return context[0].label;
+                  },
+                  label: function(context) {
+                    const label = context.dataset.label || '';
+                    const value = context.raw || 0;
+                    return `${label}: ${value} Fehler`;
+                  },
+                  footer: function(context) {
+                    // Summe aller Fehler für diesen Wochentag anzeigen
+                    const weekdayIndex = context[0].dataIndex;
+                    let total = 0;
+                    context.forEach(item => {
+                      total += item.raw || 0;
+                    });
+                    return `Gesamt: ${total} Fehler`;
+                  }
                 }
               }
-            },
-            legend: {
-              display: false
-            },
-            title: {
-              display: true,
-              text: 'Fehler-Heatmap nach Wochentag und Uhrzeit',
-              font: {
-                size: 16
-              }
             }
           }
-        }
-      });
-    } catch (fallbackError) {
-      console.error("Fallback heatmap also failed:", fallbackError);
+        });
+      } catch (error) {
+        console.error("Fehler beim Erstellen des Fehlertypen-Wochentag-Diagramms:", error);
+      }
     }
-  }
-}
 
     // Top Fehler-Liste aktualisieren
     function updateTopErrorsList() {
@@ -2199,7 +2175,7 @@ function createErrorHeatmapChart() {
         errorsByType[pattern]++;
       });
       
-      // Nach Anzahl sortieren und die Top 10 nehmen (vorher waren es 5)
+      // Nach Anzahl sortieren und die Top 10 nehmen
       const sortedErrors = Object.entries(errorsByType)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
@@ -2497,7 +2473,7 @@ function createErrorHeatmapChart() {
     }
 
     // Initial alle Daten laden
-    loadAllData();
+    loadConfig();
     
     // Datumsfilter initialisieren
     initDateFilter();
