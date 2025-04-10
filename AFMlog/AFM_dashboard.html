@@ -274,7 +274,8 @@
     }
     .filter-container {
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
+      align-items: flex-start;
       margin-bottom: 16px;
       flex-wrap: wrap;
       background-color: var(--card-bg-color);
@@ -349,6 +350,96 @@
       column-count: 2;
       column-gap: 20px;
     }
+    
+    /* Date/Time Picker Custom Styles */
+    .date-time-flex-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: relative;
+    }
+    
+    .date-time-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .input-with-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .input-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 40px;
+    }
+    
+    .control-button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--card-bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .control-button:hover {
+      background-color: var(--hover-color);
+    }
+    
+    .value-display {
+      padding: 4px;
+      min-width: 40px;
+      text-align: center;
+      font-weight: bold;
+      cursor: default;
+    }
+    
+    .value-display.editable {
+      cursor: text;
+      border: 1px dashed var(--accent-color);
+      background-color: rgba(54, 162, 235, 0.1);
+    }
+    
+    .edit-mode-btn {
+      position: absolute;
+      right: -10px;
+      top: -10px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background-color: var(--accent-color);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      z-index: 10;
+    }
+    
+    .separator {
+      font-weight: bold;
+      margin: 0 4px;
+    }
+    
+    .hidden-input {
+      position: absolute;
+      opacity: 0;
+      height: 0;
+      width: 0;
+    }
+    
     .gauge-container {
       width: 200px;
       height: 100px;
@@ -497,6 +588,94 @@
       color: var(--text-color);
       border: 1px solid var(--border-color);
     }
+
+    .date-time-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-with-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .input-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 40px;
+    }
+
+    .control-button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--card-bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .control-button:hover {
+      background-color: var(--hover-color);
+    }
+
+    .value-display {
+      padding: 4px;
+      min-width: 40px;
+      text-align: center;
+      font-weight: bold;
+      cursor: default;
+    }
+
+    .value-display.editable {
+      cursor: text;
+      border: 1px dashed var(--accent-color);
+      background-color: rgba(54, 162, 235, 0.1);
+    }
+
+    .edit-mode-btn {
+      position: absolute;
+      right: -10px;
+      top: -10px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background-color: var(--accent-color);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      z-index: 10;
+    }
+
+    .separator {
+      font-weight: bold;
+      margin: 0 4px;
+    }
+
+    .hidden-input {
+      position: absolute;
+      opacity: 0;
+      height: 0;
+      width: 0;
+    }
+
+    .date-time-flex-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: relative;
+    }
   </style>
 </head>
 <body>
@@ -542,124 +721,149 @@
         <div id="lastUpdate"></div>
 
         <!-- Filter für Zeitraum -->
-        <div class="filter-container mdl-shadow--2dp" style="padding: 16px; background-color: var(--card-bg-color);">
-          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px;">
+        <div class="filter-container mdl-shadow--2dp" style="padding: 16px; background-color: var(--card-bg-color); display: flex; justify-content: center; align-items: flex-start;">
+          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px;">
             <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: var(--secondary-text-color);">Startdatum und -zeit</label>
-            <div style="display: flex; align-items: center;">
-              <div style="display: flex; flex-direction: column; margin-right: 8px;">
-                <!-- Aufwärts-Buttons für Datum -->
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('startDate', 1, 'day')">
-                    <i class="material-icons">arrow_upward</i>
-                  </button>
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('startDate', 1, 'month')">
-                    <i class="material-icons">keyboard_arrow_up</i>
-                  </button>
+            <div class="date-time-input-group">
+              <div class="date-time-flex-container">
+                <!-- Date Input with Controls -->
+                <div class="input-with-controls">
+                  <!-- Date Sections (Day, Month, Year with individual controls) -->
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustDate('startDate', 1, 'day')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Tag</div>
+                    <button class="control-button down" onclick="adjustDate('startDate', -1, 'day')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustDate('startDate', 1, 'month')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Monat</div>
+                    <button class="control-button down" onclick="adjustDate('startDate', -1, 'month')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustDate('startDate', 1, 'year')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Jahr</div>
+                    <button class="control-button down" onclick="adjustDate('startDate', -1, 'year')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <!-- Actual input field (can be hidden or shown as needed) -->
+                  <input type="date" id="startDate" class="hidden-input" onchange="updateDateDisplay('startDate')">
                 </div>
                 
-                <!-- Datumsfeld -->
-                <input class="mdl-textfield__input" type="date" id="startDate" style="margin-bottom: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
-                
-                <!-- Abwärts-Buttons für Datum -->
-                <div style="display: flex; justify-content: space-between;">
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('startDate', -1, 'day')">
-                    <i class="material-icons">arrow_downward</i>
-                  </button>
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('startDate', -1, 'month')">
-                    <i class="material-icons">keyboard_arrow_down</i>
-                  </button>
-                </div>
-              </div>
-              
-              <div style="display: flex; flex-direction: column;">
-                <!-- Aufwärts-Buttons für Zeit -->
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('startTime', 1, 'hour')">
-                    <i class="material-icons">arrow_upward</i>
-                  </button>
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('startTime', 10, 'minute')">
-                    <i class="material-icons">keyboard_arrow_up</i>
-                  </button>
-                </div>
-                
-                <!-- Zeitfeld -->
-                <input class="mdl-textfield__input" type="time" id="startTime" style="margin-bottom: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
-                
-                <!-- Abwärts-Buttons für Zeit -->
-                <div style="display: flex; justify-content: space-between;">
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('startTime', -1, 'hour')">
-                    <i class="material-icons">arrow_downward</i>
-                  </button>
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('startTime', -10, 'minute')">
-                    <i class="material-icons">keyboard_arrow_down</i>
-                  </button>
+                <!-- Time Input with Controls -->
+                <div class="input-with-controls">
+                  <!-- Time Sections -->
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustTime('startTime', 1, 'hour')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Std</div>
+                    <button class="control-button down" onclick="adjustTime('startTime', -1, 'hour')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <div class="separator">:</div>
+                  
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustTime('startTime', 5, 'minute')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Min</div>
+                    <button class="control-button down" onclick="adjustTime('startTime', -5, 'minute')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <!-- Actual input field -->
+                  <input type="time" id="startTime" class="hidden-input" onchange="updateTimeDisplay('startTime')">
                 </div>
               </div>
             </div>
           </div>
           
-          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px;">
+          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px;">
             <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: var(--secondary-text-color);">Enddatum und -zeit</label>
-            <div style="display: flex; align-items: center;">
-              <div style="display: flex; flex-direction: column; margin-right: 8px;">
-                <!-- Aufwärts-Buttons für Datum -->
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('endDate', 1, 'day')">
-                    <i class="material-icons">arrow_upward</i>
-                  </button>
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('endDate', 1, 'month')">
-                    <i class="material-icons">keyboard_arrow_up</i>
-                  </button>
+            <div class="date-time-input-group">
+              <div class="date-time-flex-container">
+                <!-- Date Input with Controls -->
+                <div class="input-with-controls">
+                  <!-- Date Sections (Day, Month, Year with individual controls) -->
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustDate('endDate', 1, 'day')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Tag</div>
+                    <button class="control-button down" onclick="adjustDate('endDate', -1, 'day')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustDate('endDate', 1, 'month')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Monat</div>
+                    <button class="control-button down" onclick="adjustDate('endDate', -1, 'month')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustDate('endDate', 1, 'year')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Jahr</div>
+                    <button class="control-button down" onclick="adjustDate('endDate', -1, 'year')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <input type="date" id="endDate" class="hidden-input" onchange="updateDateDisplay('endDate')">
                 </div>
                 
-                <!-- Datumsfeld -->
-                <input class="mdl-textfield__input" type="date" id="endDate" style="margin-bottom: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
-                
-                <!-- Abwärts-Buttons für Datum -->
-                <div style="display: flex; justify-content: space-between;">
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('endDate', -1, 'day')">
-                    <i class="material-icons">arrow_downward</i>
-                  </button>
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustDate('endDate', -1, 'month')">
-                    <i class="material-icons">keyboard_arrow_down</i>
-                  </button>
-                </div>
-              </div>
-              
-              <div style="display: flex; flex-direction: column;">
-                <!-- Aufwärts-Buttons für Zeit -->
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('endTime', 1, 'hour')">
-                    <i class="material-icons">arrow_upward</i>
-                  </button>
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('endTime', 10, 'minute')">
-                    <i class="material-icons">keyboard_arrow_up</i>
-                  </button>
-                </div>
-                
-                <!-- Zeitfeld -->
-                <input class="mdl-textfield__input" type="time" id="endTime" style="margin-bottom: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--card-bg-color); color: var(--text-color);">
-                
-                <!-- Abwärts-Buttons für Zeit -->
-                <div style="display: flex; justify-content: space-between;">
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('endTime', -1, 'hour')">
-                    <i class="material-icons">arrow_downward</i>
-                  </button>
-                  <button class="mdl-button mdl-js-button mdl-button--icon" onclick="adjustTime('endTime', -10, 'minute')">
-                    <i class="material-icons">keyboard_arrow_down</i>
-                  </button>
+                <!-- Time Input with Controls -->
+                <div class="input-with-controls">
+                  <!-- Time Sections -->
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustTime('endTime', 1, 'hour')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Std</div>
+                    <button class="control-button down" onclick="adjustTime('endTime', -1, 'hour')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <div class="separator">:</div>
+                  
+                  <div class="input-section">
+                    <button class="control-button up" onclick="adjustTime('endTime', 5, 'minute')">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <div class="value-display">Min</div>
+                    <button class="control-button down" onclick="adjustTime('endTime', -5, 'minute')">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </div>
+                  
+                  <input type="time" id="endTime" class="hidden-input" onchange="updateTimeDisplay('endTime')">
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div class="filter-item" style="display: flex; align-items: flex-end; margin: 8px;">
-            <button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored" onclick="applyDateFilter()" style="margin-right: 8px;">
-              Filter anwenden
-            </button>
-            <button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" onclick="resetDateFilter()">
-              Zurücksetzen
-            </button>
           </div>
         </div>
 
@@ -1118,20 +1322,23 @@
       document.getElementById('startDate').value = yesterdayFormatted;
       document.getElementById('endDate').value = todayFormatted;
       
-      // Uhrzeitwerte setzen (00:00 für Start, 23:59 für Ende)
+      // Uhrzeitwerte setzen (00:00 für Start, 23:55 für Ende - geändert von 23:59)
       document.getElementById('startTime').value = '00:00';
-      document.getElementById('endTime').value = '23:59';
+      document.getElementById('endTime').value = '23:55';
       
       // Filter-Variablen setzen
       startDateFilter = new Date(yesterday);
       startDateFilter.setHours(0, 0, 0, 0); // Beginn des Tages (00:00:00)
       
       endDateFilter = new Date(today);
-      endDateFilter.setHours(23, 59, 59, 999); // Ende des Tages (23:59:59)
+      endDateFilter.setHours(23, 55, 0, 0); // Ende des Tages (23:55:00 - geändert von 23:59:59)
       
       // Filter automatisch anwenden, ohne Klick auf den Button zu erfordern
       applyFilters();
       processAllData();
+      
+      // Initialize date and time displays
+      initDateTimeDisplays();
     }
 
     // Tab-Steuerung
@@ -1165,12 +1372,13 @@
       if (startInput.value) {
         const startDate = new Date(startInput.value);
         if (startTimeInput.value) {
-          const [hours, minutes] = startTimeInput.value.split(':');
-          startDate.setHours(parseInt(hours), parseInt(minutes), 0);
+          const [hours, minutes] = startTimeInput.value.split(':').map(num => parseInt(num));
+          startDate.setHours(hours, minutes, 0, 0);
         } else {
-          startDate.setHours(0, 0, 0); // Beginn des Tages, wenn keine Zeit angegeben
+          startDate.setHours(0, 0, 0, 0); // Beginn des Tages, wenn keine Zeit angegeben
         }
         startDateFilter = startDate;
+        console.log("Start filter with time:", startDateFilter);
       } else {
         startDateFilter = null;
       }
@@ -1178,18 +1386,16 @@
       if (endInput.value) {
         const endDate = new Date(endInput.value);
         if (endTimeInput.value) {
-          const [hours, minutes] = endTimeInput.value.split(':');
-          endDate.setHours(parseInt(hours), parseInt(minutes), 59);
+          const [hours, minutes] = endTimeInput.value.split(':').map(num => parseInt(num));
+          endDate.setHours(hours, minutes, 59, 999); // Sekunden und Millisekunden auf max für Ende der Minute
         } else {
-          endDate.setHours(23, 59, 59); // Ende des Tages, wenn keine Zeit angegeben
+          endDate.setHours(23, 59, 59, 999); // Ende des Tages, wenn keine Zeit angegeben
         }
         endDateFilter = endDate;
+        console.log("End filter with time:", endDateFilter);
       } else {
         endDateFilter = null;
       }
-      
-      console.log("Start filter:", startDateFilter);
-      console.log("End filter:", endDateFilter);
       
       applyFilters();
       processAllData();
@@ -2549,9 +2755,15 @@
         currentDate.setDate(currentDate.getDate() + amount);
       } else if (unit === 'month') {
         currentDate.setMonth(currentDate.getMonth() + amount);
+      } else if (unit === 'year') {
+        currentDate.setFullYear(currentDate.getFullYear() + amount);
       }
 
       input.value = currentDate.toISOString().split('T')[0];
+      
+      // Update the display values
+      updateDateDisplay(inputId);
+      
       applyDateFilter();
     }
 
@@ -2573,7 +2785,99 @@
       const adjustedHours = currentTime.getHours().toString().padStart(2, '0');
       const adjustedMinutes = currentTime.getMinutes().toString().padStart(2, '0');
       input.value = `${adjustedHours}:${adjustedMinutes}`;
+      
+      // Update the display values
+      updateTimeDisplay(inputId);
+      
       applyDateFilter();
+    }
+
+    // Format a date value into day, month, year parts
+    function formatDateParts(dateValue) {
+      const date = new Date(dateValue);
+      return {
+        day: date.getDate().toString().padStart(2, '0'),
+        month: (date.getMonth() + 1).toString().padStart(2, '0'),
+        year: date.getFullYear()
+      };
+    }
+
+    // Format a time value into hour and minute parts
+    function formatTimeParts(timeValue) {
+      const [hours, minutes] = timeValue.split(':');
+      return {
+        hours: hours.padStart(2, '0'),
+        minutes: minutes.padStart(2, '0')
+      };
+    }
+
+    // Update the displayed date values
+    function updateDateDisplay(inputId) {
+      const input = document.getElementById(inputId);
+      if (!input || !input.value) return;
+      
+      const parts = formatDateParts(input.value);
+      const container = input.closest('.date-time-input-group');
+      
+      // Update day, month, and year displays
+      const dayDisplay = container.querySelector('.input-section:nth-child(1) .value-display');
+      const monthDisplay = container.querySelector('.input-section:nth-child(2) .value-display');
+      const yearDisplay = container.querySelector('.input-section:nth-child(3) .value-display');
+      
+      if (dayDisplay) dayDisplay.textContent = parts.day;
+      if (monthDisplay) monthDisplay.textContent = parts.month;
+      if (yearDisplay) yearDisplay.textContent = parts.year;
+    }
+
+    // Update the displayed time values
+    function updateTimeDisplay(inputId) {
+      const input = document.getElementById(inputId);
+      if (!input || !input.value) return;
+      
+      const parts = formatTimeParts(input.value);
+      const dateTimeFlexContainer = input.closest('.date-time-flex-container');
+      
+      // First find the time input container within the flex container
+      const timeInputContainer = Array.from(dateTimeFlexContainer.querySelectorAll('.input-with-controls')).find(
+        container => container.contains(input)
+      );
+      
+      if (!timeInputContainer) return;
+      
+      // Now find the hour and minute displays within this specific time input container
+      const hoursDisplay = timeInputContainer.querySelector('.input-section:nth-child(1) .value-display');
+      const minutesDisplay = timeInputContainer.querySelector('.input-section:nth-child(3) .value-display');
+      
+      if (hoursDisplay) hoursDisplay.textContent = parts.hours;
+      if (minutesDisplay) minutesDisplay.textContent = parts.minutes;
+    }
+
+    // Initialize date and time displays
+    function initDateTimeDisplays() {
+      // Initialize start date and time displays
+      updateDateDisplay('startDate');
+      updateTimeDisplay('startTime');
+      
+      // Initialize end date and time displays
+      updateDateDisplay('endDate');
+      updateTimeDisplay('endTime');
+      
+      // Set up event listeners for direct input changes
+      document.getElementById('startDate').addEventListener('change', function() {
+        updateDateDisplay('startDate');
+      });
+      
+      document.getElementById('startTime').addEventListener('change', function() {
+        updateTimeDisplay('startTime');
+      });
+      
+      document.getElementById('endDate').addEventListener('change', function() {
+        updateDateDisplay('endDate');
+      });
+      
+      document.getElementById('endTime').addEventListener('change', function() {
+        updateTimeDisplay('endTime');
+      });
     }
   </script>
 </body>
