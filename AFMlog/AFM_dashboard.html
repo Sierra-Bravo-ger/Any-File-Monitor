@@ -1363,12 +1363,7 @@
         document.getElementById('totalFiles').textContent = totalFiles;
         
         // Fehlerrate berechnen basierend auf den gefilterten Fehlerdaten
-        const errorCount = filteredErrorData.length;
-        const errorRate = totalFiles > 0 ? ((errorCount / totalFiles) * 100).toFixed(1) + '%' : '0%';
-        document.getElementById('errorRate').textContent = errorRate;
-        
-        // Systemstatus aktualisieren
-        updateSystemStatus(errorRate);
+        calculateErrorRate();
       }
 
       // Daten für die Charts vorbereiten
@@ -1538,6 +1533,66 @@
 
       document.getElementById('errorCount').textContent = results.data.length;
       renderTable(results.data, 'errorTable', true);
+      
+      // Fehlerrate wird nun zentral in calculateErrorRate() berechnet
+      calculateErrorRate();
+    }
+
+    // Zentrale Funktion für die Berechnung der Fehlerrate
+    function calculateErrorRate() {
+      // Prüfen ob genügend Daten vorhanden sind
+      if (filteredStatusData.length < 1) return;
+        
+      // Berechne die tatsächlich verarbeiteten Dateien während des Zeitraums
+      let processedFiles = 0;
+      let errorFiles = 0;
+      
+      if (filteredStatusData.length > 1) {
+        // Differenz zwischen Anfang und Ende des Zeitraums
+        const firstEntry = filteredStatusData[0];
+        const lastEntry = filteredStatusData[filteredStatusData.length - 1];
+        
+        // Berechne die Veränderung im Archiv und Fehlerverzeichnis
+        const archiveChange = parseInt(lastEntry['Archiv'] || 0) - parseInt(firstEntry['Archiv'] || 0);
+        const errorChange = parseInt(lastEntry['Error'] || 0) - parseInt(firstEntry['Error'] || 0);
+        
+        // Die Anzahl der Fehlerdateien ist die positive Änderung im Fehlerverzeichnis
+        errorFiles = Math.max(0, errorChange);
+        
+        // Die Summe der positiven Änderungen stellt die verarbeiteten Dateien dar
+        processedFiles = Math.max(0, archiveChange) + errorFiles;
+      } else {
+        // Fallback für einzelnen Datenpunkt
+        const singleEntry = filteredStatusData[0];
+        processedFiles = parseInt(singleEntry['Error'] || 0) + parseInt(singleEntry['Archiv'] || 0);
+        errorFiles = parseInt(singleEntry['Error'] || 0);
+      }
+      
+      // Für Perioden, in denen nur Fehlerdateien verarbeitet wurden
+      const errorCount = filteredErrorData.length;
+      
+      // Wenn keine Änderung oder negative Änderung (z.B. durch Dateilöschungen), verwenden wir die Fehleranzahl
+      if (processedFiles === 0) {
+        processedFiles = errorCount > 0 ? errorCount : 1; // Vermeidet Division durch Null
+        errorFiles = errorCount;
+      }
+      
+      // Wenn alle verarbeiteten Dateien Fehler sind und die Anzahl der Fehler mit errorFiles übereinstimmt,
+      // dann haben wir eine 100% Fehlerrate
+      if (processedFiles > 0 && processedFiles === errorFiles) {
+        document.getElementById('errorRate').textContent = '100.0%';
+        updateSystemStatus('100.0%');
+        return '100.0%';
+      }
+      
+      // Fehlerrate berechnen als Prozentsatz
+      const errorRate = ((errorCount / processedFiles) * 100).toFixed(1) + '%';
+      document.getElementById('errorRate').textContent = errorRate;
+      
+      // Systemstatus aktualisieren
+      updateSystemStatus(errorRate);
+      
+      return errorRate;
     }
 
     // Muster-Daten verarbeiten
@@ -2195,42 +2250,36 @@
 
     // System-Gesundheit Gauge aktualisieren
     function updateSystemHealthGauge() {
-      if (filteredStatusData.length === 0) return;
-      
-      const lastEntry = filteredStatusData[filteredStatusData.length - 1];
-      const totalFiles = parseInt(lastEntry['Input'] || 0) + 
-                         parseInt(lastEntry['Archiv'] || 0) + 
-                         parseInt(lastEntry['Error'] || 0);
-      
-      // Dieselbe Berechnung wie bei der Fehlerrate verwenden
-      const errorCount = filteredErrorData.length;
-      
-      // Gesundheit berechnen: 100% - Fehlerrate
-      let healthPercentage = 100;
-      if (totalFiles > 0) {
-        const errorRate = (errorCount / totalFiles) * 100;
-        healthPercentage = Math.max(0, 100 - errorRate);
-      }
-      
-      // Gesundheitspunktzahl anzeigen
-      document.getElementById('healthScore').textContent = healthPercentage.toFixed(1) + '%';
-      
-      // Gauge-Diagramm erstellen
-      const ctx = document.getElementById('healthGauge').getContext('2d');
-      if (window.healthGauge instanceof Chart) {
-        window.healthGauge.destroy();
-      }
-      
-      // Farbe basierend auf Gesundheit
-      let color = 'rgba(75, 192, 192, 1)'; // Grün
-      if (healthPercentage < 90) {
-        color = 'rgba(255, 206, 86, 1)'; // Gelb
-      }
-      if (healthPercentage < 80) {
-        color = 'rgba(255, 99, 132, 1)'; // Rot
-      }
-      
-      window.healthGauge = new Chart(ctx, {
+    if (filteredStatusData.length === 0) return;
+    
+    // Use the central error rate calculation function
+    const errorRateString = calculateErrorRate();
+    
+    // Parse the error rate from the returned string (removes the % sign)
+    const errorRateValue = parseFloat(errorRateString) || 0;
+    
+    // Gesundheit berechnen: 100% - Fehlerrate
+    const healthPercentage = Math.max(0, 100 - errorRateValue);
+    
+    // Gesundheitspunktzahl anzeigen
+    document.getElementById('healthScore').textContent = healthPercentage.toFixed(1) + '%';
+    
+    // Rest of the gauge creation code remains unchanged
+    const ctx = document.getElementById('healthGauge').getContext('2d');
+    if (window.healthGauge instanceof Chart) {
+      window.healthGauge.destroy();
+    }
+    
+    // Farbe basierend auf Gesundheit
+    let color = 'rgba(75, 192, 192, 1)'; // Grün
+    if (healthPercentage < 90) {
+      color = 'rgba(255, 206, 86, 1)'; // Gelb
+    }
+    if (healthPercentage < 80) {
+      color = 'rgba(255, 99, 132, 1)'; // Rot
+    }
+    
+  window.healthGauge = new Chart(ctx, {
         type: 'doughnut',
         data: {
           datasets: [{
