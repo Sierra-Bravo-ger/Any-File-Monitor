@@ -279,6 +279,7 @@
       margin-bottom: 16px;
       flex-wrap: wrap;
       background-color: var(--card-bg-color);
+      position: relative;
     }
     .filter-item {
       margin: 8px;
@@ -389,6 +390,20 @@
       border: 1px solid var(--border-color);
       border-radius: 4px;
       cursor: pointer;
+    }
+    
+    [data-theme="dark"] .control-button {
+      background-color: #333;
+      border-color: #555;
+      color: #e0e0e0;
+    }
+    
+    [data-theme="dark"] .control-button:hover {
+      background-color: #444;
+    }
+    
+    [data-theme="dark"] .control-button .material-icons {
+      color: #e0e0e0;
     }
     
     .control-button:hover {
@@ -589,6 +604,33 @@
       border: 1px solid var(--border-color);
     }
 
+    /* Quick Filter Styling */
+    .quick-filter-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 8px 16px;
+      background-color: var(--card-bg-color);
+      border-radius: 4px;
+      box-shadow: var(--card-shadow);
+      position: absolute;
+      top: 8px;
+      right: 16px;
+      z-index: 10;
+    }
+
+    .mdl-menu__item {
+      color: var(--text-color);
+    }
+
+    .mdl-menu {
+      background-color: var(--card-bg-color);
+    }
+
+    .filter-container {
+      position: relative;
+    }
+
     .date-time-input-group {
       display: flex;
       flex-direction: column;
@@ -722,6 +764,23 @@
 
         <!-- Filter für Zeitraum -->
         <div class="filter-container mdl-shadow--2dp" style="padding: 16px; background-color: var(--card-bg-color); display: flex; justify-content: center; align-items: flex-start;">
+          <!-- Quick Filter Menu -->
+          <div class="quick-filter-container">
+            <button id="quick-filter-button" class="mdl-button mdl-js-button mdl-button--icon">
+              <i class="material-icons">filter_list</i>
+            </button>
+            <span style="margin-left: 8px; color: var(--secondary-text-color);">Quick Filter</span>
+            
+            <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="quick-filter-button">
+              <li class="mdl-menu__item" onclick="applyQuickFilter(5, 'minute')">Letzte 5 Minuten</li>
+              <li class="mdl-menu__item" onclick="applyQuickFilter(60, 'minute')">Letzte 60 Minuten</li>
+              <li class="mdl-menu__item" onclick="applyQuickFilter(8, 'hour')">Letzte 8 Stunden</li>
+              <li class="mdl-menu__item" onclick="applyQuickFilter(1, 'day')">Letzter Tag</li>
+              <li class="mdl-menu__item" onclick="applyQuickFilter(7, 'day')">Letzte Woche</li>
+              <li class="mdl-menu__item" onclick="applyQuickFilter(30, 'day')">Letzter Monat</li>
+            </ul>
+          </div>
+          
           <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px;">
             <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: var(--secondary-text-color);">Startdatum und -zeit</label>
             <div class="date-time-input-group">
@@ -1072,14 +1131,14 @@
             </div>
           </div>
 
-          <!-- Fehler nach Wochentag -->
+          <!-- Fehler nach Wochentag (replaced with Fehlertypen nach Wochentagen) -->
           <div class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
-              <h2 class="mdl-card__title-text">Fehler nach Wochentag</h2>
+              <h2 class="mdl-card__title-text">Fehlertypen nach Wochentagen</h2>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
-                <canvas id="errorsByWeekdayChart"></canvas>
+                <canvas id="errorsByWeekdayStackedChart2"></canvas>
               </div>
             </div>
           </div>
@@ -1510,7 +1569,10 @@
       updateTopErrorsList();
       updateSystemHealthGauge();
       createErrorsByWeekdayChart();
-      createErrorsByWeekdayStackedChart(); // Neue Funktion
+      createErrorsByWeekdayStackedChart(); 
+      
+      // Create duplicate chart for overview tab
+      createErrorsByWeekdayStackedChart2();
     }
 
     function loadCSV(file, callback) {
@@ -1907,7 +1969,7 @@
       const throughputPerHour = calculateThroughput(filteredStatusData);
       document.getElementById('throughput').textContent = throughputPerHour;
       
-      // Archiv zu Fehler Verhältnis
+      // Archiv zu Fehler Verhältnis - Modifiziert um die vollen Zahlen zu zeigen
       const lastEntry = filteredStatusData[filteredStatusData.length - 1];
       const archiveCount = parseInt(lastEntry['Archiv'] || 0);
       const errorCount = parseInt(lastEntry['Error'] || 0);
@@ -1920,23 +1982,11 @@
       } else if (archiveCount === 0) {
         ratio = "0:1";
       } else {
-        const gcd = findGCD(archiveCount, errorCount);
-        ratio = (archiveCount / gcd) + ":" + (errorCount / gcd);
+        // Verwende vollständige Zahlen statt gekürzter Verhältnisse
+        ratio = archiveCount + ":" + errorCount;
       }
       
       document.getElementById('archiveToErrorRatio').textContent = ratio;
-    }
-    
-    // Größter gemeinsamer Teiler für Verhältnisberechnung
-    function findGCD(a, b) {
-      a = Math.abs(a);
-      b = Math.abs(b);
-      while(b) {
-        let t = b;
-        b = a % b;
-        a = t;
-      }
-      return a;
     }
 
     // Fehler-Trend nach Typ erstellen
@@ -2212,62 +2262,85 @@
 
     // Fehler nach Wochentag erstellen
     function createErrorsByWeekdayChart() {
-      if (filteredErrorData.length === 0) return;
+      if (filteredErrorData.length === 0) {
+        console.log("Keine Fehlerdaten für Wochentag-Chart verfügbar");
+        return;
+      }
       
       // Fehler nach Wochentag gruppieren
       const errorsByWeekday = Array(7).fill(0);
       
       filteredErrorData.forEach(entry => {
         if (entry.Zeitpunkt) {
-          const [datePart] = entry.Zeitpunkt.split(' ');
-          const [year, month, day] = datePart.split('-').map(num => parseInt(num));
-          const date = new Date(year, month-1, day);
-          const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-          errorsByWeekday[weekday]++;
+          try {
+            const [datePart] = entry.Zeitpunkt.split(' ');
+            const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+            const date = new Date(year, month-1, day);
+            const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
+            if (weekday >= 0 && weekday < 7) {
+              errorsByWeekday[weekday]++;
+            } else {
+              console.warn("Ungültiger Wochentag:", weekday, "für Datum:", entry.Zeitpunkt);
+            }
+          } catch (e) {
+            console.error("Fehler bei der Verarbeitung des Datums:", entry.Zeitpunkt, e);
+          }
         }
       });
+      
+      console.log("Fehler nach Wochentag:", errorsByWeekday);
       
       // Wochentagsnamen
       const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
       
-      // Chart erstellen
-      const ctx = document.getElementById('errorsByWeekdayChart').getContext('2d');
-      if (window.errorsByWeekdayChart instanceof Chart) {
-        window.errorsByWeekdayChart.destroy();
+      const ctx = document.getElementById('errorsByWeekdayChart');
+      
+      if (!ctx) {
+        console.error("Canvas-Element 'errorsByWeekdayChart' nicht gefunden!");
+        return;
       }
       
-      window.errorsByWeekdayChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: weekdays,
-          datasets: [{
-            label: 'Fehler pro Wochentag',
-            data: errorsByWeekday,
-            backgroundColor: 'rgba(153, 102, 255, 0.2)',
-            borderColor: 'rgba(153, 102, 255, 1)',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Anzahl der Fehler'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Wochentag'
+      // Chart erstellen
+      try {
+        if (window.errorsByWeekdayChart instanceof Chart) {
+          window.errorsByWeekdayChart.destroy();
+        }
+        
+        window.errorsByWeekdayChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: weekdays,
+            datasets: [{
+              label: 'Fehler pro Wochentag',
+              data: errorsByWeekday,
+              backgroundColor: 'rgba(153, 102, 255, 0.2)',
+              borderColor: 'rgba(153, 102, 255, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Anzahl der Fehler'
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Wochentag'
+                }
               }
             }
           }
-        }
-      });
+        });
+      } catch (error) {
+        console.error("Fehler beim Erstellen des Fehler-nach-Wochentag-Diagramms:", error);
+      }
     }
 
     // Fehlertypen nach Wochentag als gestapeltes Balkendiagramm
@@ -2725,6 +2798,200 @@
           }
         }
       });
+    }
+
+    // Duplicate chart for the Overview tab
+    function createErrorsByWeekdayStackedChart2() {
+      // Check if container exists
+      const ctx = document.getElementById('errorsByWeekdayStackedChart2');
+      if (!ctx) {
+        console.error("Canvas-Element 'errorsByWeekdayStackedChart2' nicht gefunden!");
+        return;
+      }
+
+      // Destroy existing chart if any
+      if (window.errorsByWeekdayStackedChart2 instanceof Chart) {
+        window.errorsByWeekdayStackedChart2.destroy();
+      }
+      
+      if (filteredPatternData.length === 0) {
+        console.log("Keine Muster-Daten für das Wochentag-Stacked-Chart verfügbar");
+        return;
+      }
+      
+      // Fehler nach Muster gruppieren und zählen
+      const errorsByType = {};
+      filteredPatternData.forEach(entry => {
+        const pattern = entry.Muster;
+        if (!errorsByType[pattern]) {
+          errorsByType[pattern] = {
+            total: 0,
+            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // So, Mo, Di, Mi, Do, Fr, Sa
+          };
+        }
+        
+        // Gesamtzahl für den Fehlertyp erhöhen
+        errorsByType[pattern].total++;
+        
+        // Wochentag bestimmen und entsprechenden Zähler erhöhen
+        if (entry.Zeitpunkt) {
+          const [datePart] = entry.Zeitpunkt.split(' ');
+          const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+          const date = new Date(year, month - 1, day);
+          const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
+          errorsByType[pattern].byWeekday[weekday]++;
+        }
+      });
+      
+      // Nach Gesamtzahl sortieren
+      const sortedErrors = Object.entries(errorsByType)
+        .sort((a, b) => b[1].total - a[1].total);
+      
+      // Top 10 häufigste Fehler verwenden
+      const topErrors = sortedErrors.slice(0, 10);
+      
+      // Wochentagsnamen
+      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+      const datasets = [];
+      
+      // Kräftige Farben für die Fehlertypen
+      const colors = [
+        'rgba(102, 153, 204, 0.85)',   // Kräftigeres Blau
+        'rgba(140, 140, 140, 0.85)',   // Dunkleres Grau
+        'rgba(120, 177, 120, 0.85)',   // Kräftigeres Grün
+        'rgba(204, 120, 120, 0.85)',   // Kräftigeres Rosa
+        'rgba(160, 120, 204, 0.85)',   // Kräftigeres Lila
+        'rgba(204, 180, 80, 0.85)',    // Kräftigeres Gelb
+        'rgba(80, 180, 204, 0.85)',    // Kräftigeres Türkis
+        'rgba(194, 135, 80, 0.85)',    // Kräftigeres Hellbraun
+        'rgba(110, 150, 204, 0.85)',   // Kräftigeres Hellblau
+        'rgba(204, 160, 110, 0.85)'    // Kräftigeres Sand
+      ];
+      
+      // Für jeden Fehlertyp ein Dataset erstellen
+      topErrors.forEach((error, index) => {
+        const [errorType, data] = error;
+        const color = colors[index % colors.length];
+        
+        datasets.push({
+          label: errorType,
+          data: data.byWeekday,
+          backgroundColor: color,
+          borderColor: color.replace('0.85)', '1)'),
+          borderWidth: 1
+        });
+      });
+      
+      try {
+        // Gestapeltes Balkendiagramm erstellen
+        window.errorsByWeekdayStackedChart2 = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: weekdays,
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: 'Wochentag'
+                },
+                stacked: true
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: 'Anzahl der Fehler'
+                },
+                stacked: true,
+                beginAtZero: true
+              }
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  title: function(context) {
+                    return context[0].label;
+                  },
+                  label: function(context) {
+                    const label = context.dataset.label || '';
+                    const value = context.raw || 0;
+                    return `${label}: ${value} Fehler`;
+                  },
+                  footer: function(context) {
+                    // Summe aller Fehler für diesen Wochentag anzeigen
+                    const weekdayIndex = context[0].dataIndex;
+                    let total = 0;
+                    context.forEach(item => {
+                      total += item.raw || 0;
+                    });
+                    return `Gesamt: ${total} Fehler`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Fehler beim Erstellen des zweiten Fehlertypen-Wochentag-Diagramms:", error);
+      }
+    }
+
+    // Quick Filter anwenden
+    function applyQuickFilter(amount, unit) {
+      // Aktuelle Zeit für das Enddatum
+      const now = new Date();
+      const endDate = new Date(now);
+      
+      // Startdatum berechnen
+      const startDate = new Date(now);
+      if (unit === 'minute') {
+        startDate.setMinutes(startDate.getMinutes() - amount);
+      } else if (unit === 'hour') {
+        startDate.setHours(startDate.getHours() - amount);
+      } else if (unit === 'day') {
+        startDate.setDate(startDate.getDate() - amount);
+      }
+      
+      // Formatieren für die Eingabefelder
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const startTimeStr = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+      
+      const endDateStr = endDate.toISOString().split('T')[0];
+      const endTimeStr = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
+      
+      // Werte setzen
+      document.getElementById('startDate').value = startDateStr;
+      document.getElementById('startTime').value = startTimeStr;
+      document.getElementById('endDate').value = endDateStr;
+      document.getElementById('endTime').value = endTimeStr;
+      
+      // Anzeigewerte aktualisieren
+      updateDateDisplay('startDate');
+      updateTimeDisplay('startTime');
+      updateDateDisplay('endDate');
+      updateTimeDisplay('endTime');
+      
+      // Filter anwenden
+      applyDateFilter();
+      
+      // Feedback für den Benutzer als Konsolen-Log
+      console.log(`Filter angewendet: Letzte ${amount} ${getUnitText(amount, unit)}`);
+    }
+
+    // Hilfsfunktion für die richtige Pluralform
+    function getUnitText(amount, unit) {
+      if (unit === 'minute') {
+        return amount === 1 ? 'Minute' : 'Minuten';
+      } else if (unit === 'hour') {
+        return amount === 1 ? 'Stunde' : 'Stunden';
+      } else if (unit === 'day') {
+        return amount === 1 ? 'Tag' : 'Tage';
+      }
+      return '';
     }
 
     // Initial alle Daten laden
