@@ -1,10 +1,22 @@
 ﻿<!DOCTYPE html>
-<html lang="de" data-theme="dark">
+<html lang="de">
+<!-- Removed the data-theme="dark" attribute to prevent flash -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <title>AnyFileMonitor Dashboard</title>
+  
+  <!-- PWA Support -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3f51b5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AFM Dashboard">
+  <link rel="apple-touch-icon" href="images/icon-152x152.png">
+  
   <!-- Material Design Lite -->
   <link rel="stylesheet" href="libs/fonts/material-icons.css">
   <link rel="stylesheet" href="libs/css/material.indigo-pink.min.css">
@@ -166,6 +178,38 @@
       right: 24px;
       z-index: 100;
     }
+    .auto-refresh-toggle {
+      position: fixed;
+      bottom: 100px;
+      right: 24px;
+      z-index: 100;
+      background-color: var(--accent-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      height: auto;
+      width: auto;
+      border-radius: 4px;
+    }
+    
+    .auto-refresh-toggle[data-state="off"] {
+      background-color: var(--secondary-text-color);
+    }
+    
+    .auto-refresh-label {
+      font-size: 12px;
+      color: white;
+      margin-bottom: 4px;
+    }
+    
+    .auto-refresh-status {
+      font-weight: bold;
+      font-size: 14px;
+      color: white;
+    }
+    
     .mdl-spinner {
       margin: 0 auto;
       display: block;
@@ -285,9 +329,28 @@
       margin: 8px;
     }
     .filter-label {
-      font-size: 12px;
-      margin-bottom: 4px;
-      color: var(--secondary-text-color);
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: white;
+      text-align: center;
+      font-weight: 500;
+      width: 100%;
+      background-color: var(--accent-color);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      margin: 8px 16px;
+      align-items: center;
+    }
+    
+    .date-time-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
     .tab-container {
       display: none;
@@ -358,12 +421,6 @@
       align-items: center;
       gap: 16px;
       position: relative;
-    }
-    
-    .date-time-input-group {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
     }
     
     .input-with-controls {
@@ -718,13 +775,69 @@
       gap: 16px;
       position: relative;
     }
+
+    .timeframe-indicator {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 12px;
+      margin: 0 16px;
+      background-color: var(--accent-color);
+      color: white;
+      border-radius: 8px;
+      min-width: 150px;
+      text-align: center;
+    }
+    
+    .timeframe-controls {
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    
+    .timeframe-content {
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      align-items: center;
+      padding: 0 8px;
+    }
+    
+    .timeframe-button {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 0 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+    
+    .timeframe-button:hover {
+      opacity: 1;
+    }
+    
+    .timeframe-indicator-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    
+    .timeframe-indicator-value {
+      font-weight: bold;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
     <header class="mdl-layout__header">
-      <div class="mdl-layout__header-row">
-        <div class="header-left" style="display: flex; align-items: center; margin-right: auto;">
+      <div class="mdl-layout__header-row">        <div class="header-left" style="display: flex; align-items: center; margin-right: auto;">
           <!-- Theme-Toggle-Button mit Abstand zum Burger-Menü -->
           <label class="theme-toggle" style="margin-left: 48px;">
             <input type="checkbox" id="themeToggle" checked>
@@ -734,7 +847,10 @@
             </span>
           </label>
         </div>
-        <span class="mdl-layout-title">AnyFileMonitor Dashboard</span>
+        <span class="mdl-layout-title">
+          <img src="images/icon-72x72.png" alt="AFM Logo" style="height: 32px; width: 32px; margin-right: 10px; vertical-align: middle;">
+          AnyFileMonitor Dashboard
+        </span>
         <div class="header-right">
           <nav class="mdl-navigation">
             <a class="mdl-navigation__link" href="#overview" onclick="showTab('overview')">Übersicht</a>
@@ -764,14 +880,12 @@
 
         <!-- Filter für Zeitraum -->
         <div class="filter-container mdl-shadow--2dp" style="padding: 16px; background-color: var(--card-bg-color); display: flex; justify-content: center; align-items: flex-start;">
-          <!-- Quick Filter Menu -->
-          <div class="quick-filter-container">
-            <button id="quick-filter-button" class="mdl-button mdl-js-button mdl-button--icon">
+          <!-- Quick Filter Menu -->          <div class="quick-filter-container">
+            <button id="quick-filter-button" class="mdl-button mdl-js-button mdl-button--icon" title="Quick Filter">
               <i class="material-icons">filter_list</i>
             </button>
-            <span style="margin-left: 8px; color: var(--secondary-text-color);">Quick Filter</span>
             
-            <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="quick-filter-button">
+            <ul class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="quick-filter-button">
               <li class="mdl-menu__item" onclick="applyQuickFilter(5, 'minute')">Letzte 5 Minuten</li>
               <li class="mdl-menu__item" onclick="applyQuickFilter(60, 'minute')">Letzte 60 Minuten</li>
               <li class="mdl-menu__item" onclick="applyQuickFilter(8, 'hour')">Letzte 8 Stunden</li>
@@ -781,8 +895,8 @@
             </ul>
           </div>
           
-          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px;">
-            <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: var(--secondary-text-color);">Startdatum und -zeit</label>
+          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px; justify-content: flex-start;">
+            <label class="filter-label" style="color: white; margin-top: 0;">Startdatum und -zeit</label>
             <div class="date-time-input-group">
               <div class="date-time-flex-container">
                 <!-- Date Input with Controls -->
@@ -798,6 +912,8 @@
                     </button>
                   </div>
                   
+                  <span class="separator">/</span>
+                  
                   <div class="input-section">
                     <button class="control-button up" onclick="adjustDate('startDate', 1, 'month')">
                       <i class="material-icons">keyboard_arrow_up</i>
@@ -807,6 +923,8 @@
                       <i class="material-icons">keyboard_arrow_down</i>
                     </button>
                   </div>
+                  
+                  <span class="separator">/</span>
                   
                   <div class="input-section">
                     <button class="control-button up" onclick="adjustDate('startDate', 1, 'year')">
@@ -854,8 +972,24 @@
             </div>
           </div>
           
-          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px;">
-            <label class="filter-label" style="font-size: 12px; margin-bottom: 4px; color: var(--secondary-text-color);">Enddatum und -zeit</label>
+          <!-- Timeframe Indicator -->
+          <div class="timeframe-indicator">
+            <div class="timeframe-controls">
+              <button class="timeframe-button" onclick="shiftTimeframe(-1)">
+                <i class="material-icons">navigate_before</i>
+              </button>
+              <div class="timeframe-content">
+                <span class="timeframe-indicator-label">Zeitraum</span>
+                <span class="timeframe-indicator-value" id="timeframeDisplay">01.01.23 00:00 - 02.01.23 23:59</span>
+              </div>
+              <button class="timeframe-button" onclick="shiftTimeframe(1)">
+                <i class="material-icons">navigate_next</i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px; justify-content: flex-start;">
+            <label class="filter-label" style="color: white; margin-top: 0;">Enddatum und -zeit</label>
             <div class="date-time-input-group">
               <div class="date-time-flex-container">
                 <!-- Date Input with Controls -->
@@ -871,6 +1005,8 @@
                     </button>
                   </div>
                   
+                  <span class="separator">/</span>
+                  
                   <div class="input-section">
                     <button class="control-button up" onclick="adjustDate('endDate', 1, 'month')">
                       <i class="material-icons">keyboard_arrow_up</i>
@@ -880,6 +1016,8 @@
                       <i class="material-icons">keyboard_arrow_down</i>
                     </button>
                   </div>
+                  
+                  <span class="separator">/</span>
                   
                   <div class="input-section">
                     <button class="control-button up" onclick="adjustDate('endDate', 1, 'year')">
@@ -1303,6 +1441,14 @@
     <i class="material-icons">refresh</i>
   </button>
 
+  <!-- Auto-refresh toggle as a button -->
+  <button id="autoRefreshToggle" class="mdl-button mdl-js-button mdl-js-ripple-effect auto-refresh-toggle" onclick="toggleAutoRefresh()">
+    <div class="auto-refresh-content">
+      <div class="auto-refresh-label">Auto-Refresh: 5min</div>
+      <div class="auto-refresh-status">ON</div>
+    </div>
+  </button>
+
   <script>
     // Globale Variablen
     let allStatusData = [];
@@ -1320,6 +1466,9 @@
     
     // Bekannte Fehlermuster aus config.ini - wird dynamisch geladen
     let knownErrorPatterns = [];
+
+    // Auto-refresh Intervall
+    let autoRefreshInterval = null;
 
     // Konfiguration aus config.ini laden
     function loadConfig() {
@@ -1381,23 +1530,26 @@
       document.getElementById('startDate').value = yesterdayFormatted;
       document.getElementById('endDate').value = todayFormatted;
       
-      // Uhrzeitwerte setzen (00:00 für Start, 23:55 für Ende - geändert von 23:59)
+      // Uhrzeitwerte setzen (00:00 für Start und 00:00 für Ende)
       document.getElementById('startTime').value = '00:00';
-      document.getElementById('endTime').value = '23:55';
+      document.getElementById('endTime').value = '00:00';
       
       // Filter-Variablen setzen
       startDateFilter = new Date(yesterday);
       startDateFilter.setHours(0, 0, 0, 0); // Beginn des Tages (00:00:00)
       
       endDateFilter = new Date(today);
-      endDateFilter.setHours(23, 55, 0, 0); // Ende des Tages (23:55:00 - geändert von 23:59:59)
+      endDateFilter.setHours(0, 0, 0, 0); // Beginn des Tages (00:00:00)
+      
+      // Initialize date and time displays
+      initDateTimeDisplays();
+      
+      // Initialize the timeframe display explicitly
+      updateTimeframeDisplay();
       
       // Filter automatisch anwenden, ohne Klick auf den Button zu erfordern
       applyFilters();
       processAllData();
-      
-      // Initialize date and time displays
-      initDateTimeDisplays();
     }
 
     // Tab-Steuerung
@@ -1458,6 +1610,9 @@
       
       applyFilters();
       processAllData();
+      
+      // Update the timeframe indicator display
+      updateTimeframeDisplay();
     }
 
     // Datum-Filter zurücksetzen
@@ -3000,8 +3155,25 @@
     // Datumsfilter initialisieren
     initDateFilter();
     
-    // Alle 60 Sekunden aktualisieren
-    setInterval(loadAllData, 60000);
+    // Auto-refresh Funktionalität
+    function toggleAutoRefresh() {
+      const button = document.getElementById('autoRefreshToggle');
+      const statusText = button.querySelector('.auto-refresh-status');
+      
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        button.setAttribute('data-state', 'off');
+        statusText.textContent = 'OFF';
+      } else {
+        autoRefreshInterval = setInterval(loadAllData, 300000); // 5 Minuten (300000ms)
+        button.removeAttribute('data-state');
+        statusText.textContent = 'ON';
+      }
+    }
+    
+    // Auto-refresh beim Start aktivieren
+    autoRefreshInterval = setInterval(loadAllData, 300000); // 5 Minuten
 
     // Theme-Toggle-Button Funktionalität
     document.getElementById('themeToggle').addEventListener('change', function() {
@@ -3009,6 +3181,27 @@
         document.documentElement.setAttribute('data-theme', 'dark');
       } else {
         document.documentElement.setAttribute('data-theme', 'light');
+      }
+    });
+
+    // Initialize theme based on system preference and then checkbox state
+    document.addEventListener('DOMContentLoaded', function() {
+      const themeToggle = document.getElementById('themeToggle');
+      if (themeToggle) {
+        // Check system preference first
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        // Set checkbox state based on system preference
+        themeToggle.checked = prefersDarkScheme;
+        
+        // Apply theme based on the checkbox state (which now reflects system preference)
+        document.documentElement.setAttribute('data-theme', themeToggle.checked ? 'dark' : 'light');
+        
+        // Listen for system preference changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+          themeToggle.checked = e.matches;
+          document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        });
       }
     });
 
@@ -3084,16 +3277,26 @@
       if (!input || !input.value) return;
       
       const parts = formatDateParts(input.value);
-      const container = input.closest('.date-time-input-group');
+      const container = input.closest('.date-time-flex-container');
       
-      // Update day, month, and year displays
-      const dayDisplay = container.querySelector('.input-section:nth-child(1) .value-display');
-      const monthDisplay = container.querySelector('.input-section:nth-child(2) .value-display');
-      const yearDisplay = container.querySelector('.input-section:nth-child(3) .value-display');
+      if (!container) return;
       
-      if (dayDisplay) dayDisplay.textContent = parts.day;
-      if (monthDisplay) monthDisplay.textContent = parts.month;
-      if (yearDisplay) yearDisplay.textContent = parts.year;
+      // Find the date input container
+      const dateContainer = Array.from(container.querySelectorAll('.input-with-controls')).find(
+        cont => cont.contains(input)
+      );
+      
+      if (!dateContainer) return;
+      
+      // Get all value-display elements in proper order
+      const displayElements = dateContainer.querySelectorAll('.value-display');
+      
+      if (displayElements.length >= 3) {
+        // Update in correct order - first is day, second is month, third is year
+        displayElements[0].textContent = parts.day;
+        displayElements[1].textContent = parts.month;
+        displayElements[2].textContent = parts.year;
+      }
     }
 
     // Update the displayed time values
@@ -3145,6 +3348,105 @@
       document.getElementById('endTime').addEventListener('change', function() {
         updateTimeDisplay('endTime');
       });
+      
+      // Add tap handlers for the date/time display elements to show native pickers on mobile
+      document.querySelectorAll('.input-section .value-display').forEach(element => {
+        element.addEventListener('click', function() {
+          // Find the associated hidden input
+          const section = this.closest('.input-section');
+          const container = section.closest('.input-with-controls');
+          const hiddenInput = container.querySelector('.hidden-input');
+          
+          if (hiddenInput) {
+            // Focus and open the native picker
+            hiddenInput.click();
+            hiddenInput.focus();
+          }
+        });
+      });
+    }
+
+    // Update the timeframe indicator display
+    function updateTimeframeDisplay() {
+      const startDate = document.getElementById('startDate').value;
+      const startTime = document.getElementById('startTime').value;
+      const endDate = document.getElementById('endDate').value;
+      const endTime = document.getElementById('endTime').value;
+      
+      if (!startDate || !endDate) return;
+      
+      // Create full date objects
+      const startDateTime = new Date(`${startDate}T${startTime}:00`);
+      const endDateTime = new Date(`${endDate}T${endTime}:00`);
+      
+      // Calculate time difference in milliseconds
+      const timeDiff = endDateTime - startDateTime;
+      
+      // Convert to days, hours, minutes
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      // Format the duration text
+      let durationText = '';
+      if (days > 0) {
+        durationText += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+        if (hours > 0 || minutes > 0) durationText += ', ';
+      }
+      if (hours > 0) {
+        durationText += `${hours} ${hours === 1 ? 'Stunde' : 'Stunden'}`;
+        if (minutes > 0) durationText += ', ';
+      }
+      if (minutes > 0 || (days === 0 && hours === 0)) {
+        durationText += `${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'}`;
+      }
+      
+      // Update the timeframe display
+      document.getElementById('timeframeDisplay').textContent = durationText;
+    }
+
+    // Function to shift the timeframe left or right
+    function shiftTimeframe(direction) {
+      const startDate = document.getElementById('startDate').value;
+      const startTime = document.getElementById('startTime').value;
+      const endDate = document.getElementById('endDate').value;
+      const endTime = document.getElementById('endTime').value;
+      
+      if (!startDate || !endDate) return;
+      
+      // Create full date objects
+      const startDateTime = new Date(`${startDate}T${startTime}:00`);
+      const endDateTime = new Date(`${endDate}T${endTime}:00`);
+      
+      // Calculate the current timeframe duration in milliseconds
+      const timeframeDuration = endDateTime - startDateTime;
+      
+      // Create new start and end dates based on the direction
+      // direction = -1 moves backward in time, +1 moves forward
+      const newStartDateTime = new Date(startDateTime.getTime() + (direction * timeframeDuration));
+      const newEndDateTime = new Date(endDateTime.getTime() + (direction * timeframeDuration));
+      
+      // Format the dates for the inputs
+      const newStartDate = newStartDateTime.toISOString().split('T')[0];
+      const newStartTime = `${newStartDateTime.getHours().toString().padStart(2, '0')}:${newStartDateTime.getMinutes().toString().padStart(2, '0')}`;
+      
+      const newEndDate = newEndDateTime.toISOString().split('T')[0];
+      const newEndTime = `${newEndDateTime.getHours().toString().padStart(2, '0')}:${newEndDateTime.getMinutes().toString().padStart(2, '0')}`;
+      
+      // Set the new values
+      document.getElementById('startDate').value = newStartDate;
+      document.getElementById('startTime').value = newStartTime;
+      document.getElementById('endDate').value = newEndDate;
+      document.getElementById('endTime').value = newEndTime;
+      
+      // Update displays
+      updateDateDisplay('startDate');
+      updateTimeDisplay('startTime');
+      updateDateDisplay('endDate');
+      updateTimeDisplay('endTime');
+      
+      // Apply the new filter
+      applyDateFilter();
     }
   </script>
 </body>
