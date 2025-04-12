@@ -22,14 +22,16 @@
   <link rel="stylesheet" href="libs/css/material.indigo-pink.min.css">
   <script defer src="libs/js/material.min.js"></script>
   <!-- PapaParse für CSV-Parsing -->
-  <script src="libs/js/papaparse.min.js"></script>
-  <!-- Chart.js für Diagramme -->
+  <script src="libs/js/papaparse.min.js"></script>  <!-- Chart.js für Diagramme -->
   <script src="libs/js/chart.js"></script>
   <script src="libs/js/chartjs-chart-matrix.min.js"></script>
   <script src="libs/js/chartjs-plugin-datalabels.js"></script>
   <!-- Moment.js für Datumsfunktionen -->
   <script src="libs/js/moment.min.js"></script>
   <script src="libs/js/moment-de.js"></script>
+  <!-- noUiSlider für den Zeitraum-Slider -->
+  <link rel="stylesheet" href="libs/css/nouislider.min.css">
+  <script src="libs/js/nouislider.min.js"></script>
   <style>
     :root {
       /* Light Theme Variablen */
@@ -830,11 +832,183 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       margin-bottom: 4px;
-    }
-    
-    .timeframe-indicator-value {
+    }    .timeframe-indicator-value {
       font-weight: bold;
       font-size: 14px;
+    }
+      /* Collapsible Filter Styles */
+    .filter-header {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 10px 20px;
+      background-color: var(--card-title-bg-color);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+    }
+    
+    .filter-header.collapsed {
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+    
+    .filter-title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    
+    #toggleFilterBtn {
+      color: white;
+    }
+    
+    .filter-container {
+      max-height: 1000px; /* Large enough to contain all content */
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto 16px;
+      border-radius: 0 0 4px 4px;
+    }
+    
+    .filter-container.collapsed {
+      max-height: 0;
+      padding: 0 !important;
+      margin-top: 0;
+      border-top: none;
+    }
+    
+    /* Date Range Slider Styles */
+    .date-range-slider-container {
+      width: 100%;
+      max-width: 900px;
+      margin: 20px auto 16px;
+      padding: 16px 25px;
+      position: relative;
+    }
+      .slider-controls {
+      display: flex;
+      align-items: center;
+      margin-top: 20px;
+    }
+    
+    .slider-container {
+      padding: 15px 10px 0;
+      flex-grow: 1;
+    }
+    
+    .range-shift-button {
+      color: var(--accent-color);
+      background-color: transparent;
+      margin: 0 4px;
+      transition: background-color 0.2s;
+    }
+    
+    .range-shift-button:hover {
+      background-color: rgba(63, 81, 181, 0.1);
+    }
+    
+    .range-shift-button i {
+      font-size: 28px;
+    }
+    
+    .noUi-connect {
+      background-color: var(--accent-color);
+    }
+    
+    .noUi-horizontal {
+      height: 8px;
+    }
+    
+    .noUi-horizontal .noUi-handle {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: var(--accent-color);
+      box-shadow: 0 0 0 2px white;
+      cursor: pointer;
+      top: -7px;
+      right: -10px;
+    }
+    
+    .noUi-handle:before,
+    .noUi-handle:after {
+      display: none; /* Remove default lines in handles */
+    }
+    
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+    
+    .slider-tooltip {
+      display: block;
+      position: absolute;
+      background-color: var(--accent-color);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      bottom: 30px;
+      transform: translateX(-50%);
+      text-align: center;
+      white-space: nowrap;
+    }
+    
+    .slider-markers {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      position: relative;
+      height: 16px;
+    }
+    
+    .slider-marker {
+      position: absolute;
+      width: 2px;
+      height: 10px;
+      background-color: var(--secondary-text-color);
+      bottom: 0;
+      transform: translateX(-50%);
+    }
+    
+    .slider-marker-label {
+      position: absolute;
+      bottom: -15px;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: var(--secondary-text-color);
+      white-space: nowrap;
+    }
+    
+    .date-range-slider-title {
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 4px 0;
+      text-align: center;
+      background-color: var(--accent-color);
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    
+    .slider-timestamp-display {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    
+    .slider-timestamp {
+      padding: 6px 10px;
+      background-color: var(--accent-color);
+      color: white;
+      border-radius: 4px;
+      font-size: 13px;
     }
   </style>
 </head>
@@ -880,11 +1054,37 @@
     </div>
     <main class="mdl-layout__content">
       <div class="page-content">
-        <div id="lastUpdate"></div>
-
-        <!-- Filter für Zeitraum -->
-        <div class="filter-container mdl-shadow--2dp" style="padding: 16px; background-color: var(--card-bg-color); display: flex; justify-content: center; align-items: flex-start;">
-          <!-- Quick Filter Menu -->          <div class="quick-filter-container">
+        <div id="lastUpdate"></div>        <!-- Filter für Zeitraum -->
+        <div class="filter-header mdl-shadow--2dp">
+          <div class="filter-title">Zeitraumfilter</div>
+          <button id="toggleFilterBtn" class="mdl-button mdl-js-button mdl-button--icon" title="Filter ein-/ausklappen">
+            <i class="material-icons" id="toggleFilterIcon">expand_less</i>
+          </button>
+        </div>
+        <div class="filter-container mdl-shadow--2dp" id="filterContent" style="padding: 16px; background-color: var(--card-bg-color); display: flex; justify-content: center; align-items: flex-start;">
+          <!-- Date Range Slider -->
+          <div class="date-range-slider-container mdl-shadow--2dp">
+            <div class="date-range-slider-title">Zeitraumauswahl</div>
+            <div class="slider-controls">
+              <button class="mdl-button mdl-js-button mdl-button--icon range-shift-button" id="shiftRangeLeft" title="Zeitraum zurück verschieben">
+                <i class="material-icons">keyboard_arrow_left</i>
+              </button>
+              <div class="slider-container">
+                <div id="dateRangeSlider"></div>
+                <div class="slider-markers" id="sliderMarkers"></div>
+              </div>
+              <button class="mdl-button mdl-js-button mdl-button--icon range-shift-button" id="shiftRangeRight" title="Zeitraum vorwärts verschieben">
+                <i class="material-icons">keyboard_arrow_right</i>
+              </button>
+            </div>
+            <div class="slider-timestamp-display">
+              <div class="slider-timestamp" id="sliderStartTimestamp">Start: --</div>
+              <div class="slider-timestamp" id="sliderEndTimestamp">Ende: --</div>
+            </div>
+          </div>
+          
+          <!-- Quick Filter Menu -->
+          <div class="quick-filter-container">
             <button id="quick-filter-button" class="mdl-button mdl-js-button mdl-button--icon" title="Quick Filter">
               <i class="material-icons">filter_list</i>
             </button>
@@ -1605,14 +1805,30 @@
         endDateFilter = null;
       }
       
+      // Update the noUISlider to match the new date range
+      if (window.dateSlider && startDateFilter && endDateFilter) {
+        window.dateSlider.set([
+          startDateFilter.getTime(), 
+          endDateFilter.getTime()
+        ]);
+        
+        // Also update the displayed timestamps under the slider
+        const formatSliderDate = (timestamp) => {
+          const date = new Date(timestamp);
+          return moment(date).format('DD.MM.YYYY HH:mm');
+        };
+        
+        document.getElementById('sliderStartTimestamp').textContent = 
+          'Start: ' + formatSliderDate(startDateFilter);
+        document.getElementById('sliderEndTimestamp').textContent = 
+          'Ende: ' + formatSliderDate(endDateFilter);
+      }
+      
       applyFilters();
       processAllData();
       
       // Update the timeframe indicator display
       updateTimeframeDisplay();
-      
-      // Update chart titles with new timeframe
-      updateChartTitles();
     }
 
     // Datum-Filter zurücksetzen
@@ -1700,13 +1916,17 @@
         new Promise(resolve => loadCSV('./AFM_input_details.csv', results => {
           allInputData = results.data || [];
           resolve();
-        }))
-      ]).then(() => {
+        }))      ]).then(() => {
         // Nach dem Laden aller Daten Filter anwenden
         applyFilters();
         processAllData();
+        
+        // Initialize date range slider after data is loaded
+        initDateRangeSlider();
       });
-    }    function processAllData() {
+    }
+
+    function processAllData() {
       processStatusData({ data: filteredStatusData });
       processErrorData({ data: filteredErrorData });
       processPatternData({ data: filteredPatternData });
@@ -1721,6 +1941,7 @@
       createErrorTypePieChart();
       updateTopErrorsList();
       updateSystemHealthGauge();
+      createErrorsByWeekdayChart();
       createErrorsByWeekdayStackedChart(); 
       
       // Create duplicate chart for overview tab
@@ -1774,8 +1995,8 @@
         
         // Fehlerrate berechnen
         calculateErrorRate();
-      }      // Group data by 5-minute intervals for finer visualization
-      const inputBy5Min = {};
+      }      // Group data by 15-minute intervals for better visualization
+      const inputBy15Min = {};
       const errorByHour = {};
       const archiveByHour = {};
       
@@ -1785,12 +2006,13 @@
       results.data.forEach(entry => {
         if (!entry.Zeitpunkt) return;
         
-        // Extract date and round to 5-minute interval
+        // Extract date and round to 15-minute interval
         const timestamp = new Date(entry.Zeitpunkt);
         const minutes = timestamp.getMinutes();
-        // Round to nearest 5-minute interval (0, 5, 10, 15, 20, ...)
-        const roundedMinutes = Math.floor(minutes / 5) * 5;
-          const min5Key = new Date(
+        // Round to nearest 15-minute interval (0, 15, 30, 45)
+        const roundedMinutes = Math.floor(minutes / 15) * 15;
+        
+        const min15Key = new Date(
           timestamp.getFullYear(),
           timestamp.getMonth(),
           timestamp.getDate(),
@@ -1798,14 +2020,14 @@
           roundedMinutes
         ).toISOString();
         
-        // Store input values by 5-minute buckets
-        if (!inputBy5Min[min5Key]) {
-          inputBy5Min[min5Key] = { sum: 0, count: 0 };
+        // Store input values by 15-minute buckets
+        if (!inputBy15Min[min15Key]) {
+          inputBy15Min[min15Key] = { sum: 0, count: 0 };
         }
         
-        // Sum input values for this 5-minute interval
-        inputBy5Min[min5Key].sum += parseInt(entry['Input'] || 0);
-        inputBy5Min[min5Key].count++;
+        // Sum input values for this 15-minute interval
+        inputBy15Min[min15Key].sum += parseInt(entry['Input'] || 0);
+        inputBy15Min[min15Key].count++;
         
         // Keep hourly buckets for error and archive charts
         const hourKey = new Date(
@@ -1826,7 +2048,8 @@
         errorByHour[hourKey].count++;
         archiveByHour[hourKey].sum += parseInt(entry['Archiv'] || 0);
         archiveByHour[hourKey].count++;
-      });      // Create labels and data arrays for the charts
+      });
+        // Create labels and data arrays for the charts
       const inputLabels = [];
       const inputData = [];
       const errorLabels = [];
@@ -1834,15 +2057,15 @@
       const archiveLabels = [];
       const archiveData = [];
       
-      // Format and prepare the input data with 5-minute intervals
-      Object.entries(inputBy5Min)
+      // Format and prepare the input data with 15-minute intervals
+      Object.entries(inputBy15Min)
         .sort(([a], [b]) => a.localeCompare(b)) // Sort by timestamp
-        .forEach(([min5Key, values]) => {
-          const date = new Date(min5Key);
+        .forEach(([min15Key, values]) => {
+          const date = new Date(min15Key);
           const formattedTime = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
           inputLabels.push(formattedTime);
           
-          // Calculate average values for each 5-minute interval
+          // Calculate average values for each 15-minute interval
           inputData.push(Math.round(values.sum / values.count));
         });
       
@@ -1863,7 +2086,8 @@
       if (window.inputChart instanceof Chart) {
         window.inputChart.destroy();
       }
-        window.inputChart = new Chart(ctxInput, {
+      
+      window.inputChart = new Chart(ctxInput, {
         type: 'line',
         data: {
           labels: inputLabels,
@@ -1875,11 +2099,8 @@
             borderWidth: 2,
             tension: 0.3,
             fill: true,
-            pointRadius: 3, // Always show points (like other charts)
-            pointHoverRadius: 5,
-            pointBackgroundColor: 'rgba(54, 162, 235, 1)',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 1
+            pointRadius: inputLabels.length > 30 ? 0 : 2, // Hide points if we have too many data points
+            pointHoverRadius: 4
           }]
         },
         options: {
@@ -1896,7 +2117,7 @@
             x: {
               title: {
                 display: true,
-                text: 'Zeitraum (5-Minuten Intervalle)'
+                text: 'Zeitraum (15-Minuten Intervalle)'
               },
               ticks: {
                 maxRotation: 45,
@@ -1919,14 +2140,14 @@
             },
             title: {
               display: true,
-              text: 'Input-Verlauf (5-Minuten Intervalle)',
+              text: 'Input-Verlauf (15-Minuten Intervalle)',
               font: {
                 size: 16
               }
             }
           }
         }
-      });// Create Error Chart with improved styling
+      });      // Create Error Chart with improved styling
       const ctxError = document.getElementById('errorChart').getContext('2d');
       if (window.errorChart instanceof Chart) {
         window.errorChart.destroy();
@@ -2313,7 +2534,8 @@
         'rgba(153, 102, 255, 1)',
         'rgba(255, 159, 64, 1)'
       ];
-        // Create datasets
+      
+      // Create datasets
       const datasets = [];
       
       // Create a dataset for each error type
@@ -2328,11 +2550,8 @@
           backgroundColor: colors[index % colors.length].replace('1)', '0.2)'),
           tension: 0.3,
           fill: true,
-          pointRadius: 3, // Add visible data points
-          pointBackgroundColor: colors[index % colors.length],
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1,
-          pointHoverRadius: 5
+          pointRadius: 0,
+          pointHoverRadius: 3
         });
       });
       
@@ -2739,8 +2958,90 @@
           }
         }
       });
-    }    // This function has been removed since it was unused
-    // The functionality is now covered by createErrorsByWeekdayStackedChart and createErrorsByWeekdayStackedChart2
+    }
+
+    // Fehler nach Wochentag erstellen
+    function createErrorsByWeekdayChart() {
+      if (filteredErrorData.length === 0) {
+        console.log("Keine Fehlerdaten für Wochentag-Chart verfügbar");
+        return;
+      }
+      
+      // Fehler nach Wochentag gruppieren
+      const errorsByWeekday = Array(7).fill(0);
+      
+      filteredErrorData.forEach(entry => {
+        if (entry.Zeitpunkt) {
+          try {
+            const [datePart] = entry.Zeitpunkt.split(' ');
+            const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+            const date = new Date(year, month-1, day);
+            const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
+            if (weekday >= 0 && weekday < 7) {
+              errorsByWeekday[weekday]++;
+            } else {
+              console.warn("Ungültiger Wochentag:", weekday, "für Datum:", entry.Zeitpunkt);
+            }
+          } catch (e) {
+            console.error("Fehler bei der Verarbeitung des Datums:", entry.Zeitpunkt, e);
+          }
+        }
+      });
+      
+      console.log("Fehler nach Wochentag:", errorsByWeekday);
+      
+      // Wochentagsnamen
+      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+      
+      const ctx = document.getElementById('errorsByWeekdayChart');
+      
+      if (!ctx) {
+        console.error("Canvas-Element 'errorsByWeekdayChart' nicht gefunden!");
+        return;
+      }
+      
+      // Chart erstellen
+      try {
+        if (window.errorsByWeekdayChart instanceof Chart) {
+          window.errorsByWeekdayChart.destroy();
+        }
+        
+        window.errorsByWeekdayChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: weekdays,
+            datasets: [{
+              label: 'Fehler pro Wochentag',
+              data: errorsByWeekday,
+              backgroundColor: 'rgba(153, 102, 255, 0.2)',
+              borderColor: 'rgba(153, 102, 255, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Anzahl der Fehler'
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Wochentag'
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Fehler beim Erstellen des Fehler-nach-Wochentag-Diagramms:", error);
+      }
+    }
 
     // Fehlertypen nach Wochentag als gestapeltes Balkendiagramm
     function createErrorsByWeekdayStackedChart() {
@@ -2762,7 +3063,7 @@
         if (!errorsByType[pattern]) {
           errorsByType[pattern] = {
             total: 0,
-            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // Mo, Di, Mi, Do, Fr, Sa, So (starting with Monday)
+            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // So, Mo, Di, Mi, Do, Fr, Sa
           };
         }
         
@@ -2775,9 +3076,7 @@
           const [year, month, day] = datePart.split('-').map(num => parseInt(num));
           const date = new Date(year, month - 1, day);
           const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-          // Remap weekday index: 0 (Sunday) becomes 6, 1-6 (Mon-Sat) becomes 0-5
-          const remappedWeekday = weekday === 0 ? 6 : weekday - 1;
-          errorsByType[pattern].byWeekday[remappedWeekday]++;
+          errorsByType[pattern].byWeekday[weekday]++;
         }
       });
       
@@ -2793,7 +3092,7 @@
       
       // Transformiere die Daten für das gestapelte Balkendiagramm
       // (7 Wochentage x bis zu 10 Fehlertypen)
-      const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
       const datasets = [];
       
       // Kräftigere Farben für die Fehlertypen
@@ -3227,7 +3526,7 @@
         if (!errorsByType[pattern]) {
           errorsByType[pattern] = {
             total: 0,
-            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // Mo, Di, Mi, Do, Fr, Sa, So (starting with Monday)
+            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // So, Mo, Di, Mi, Do, Fr, Sa
           };
         }
         
@@ -3240,9 +3539,7 @@
           const [year, month, day] = datePart.split('-').map(num => parseInt(num));
           const date = new Date(year, month - 1, day);
           const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-          // Remap weekday index: 0 (Sunday) becomes 6, 1-6 (Mon-Sat) becomes 0-5
-          const remappedWeekday = weekday === 0 ? 6 : weekday - 1;
-          errorsByType[pattern].byWeekday[remappedWeekday]++;
+          errorsByType[pattern].byWeekday[weekday]++;
         }
       });
       
@@ -3254,7 +3551,7 @@
       const topErrors = sortedErrors.slice(0, 10);
       
       // Wochentagsnamen
-      const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
       const datasets = [];
       
       // Kräftige Farben für die Fehlertypen
@@ -3430,9 +3727,7 @@
       } else {
         document.documentElement.setAttribute('data-theme', 'light');
       }
-    });
-
-    // Initialize theme based on system preference and then checkbox state
+    });    // Initialize theme based on system preference and then checkbox state
     document.addEventListener('DOMContentLoaded', function() {
       const themeToggle = document.getElementById('themeToggle');
       if (themeToggle) {
@@ -3450,6 +3745,40 @@
           themeToggle.checked = e.matches;
           document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
         });
+      }
+      
+      // Initialize filter collapse state from localStorage
+      const filterContent = document.getElementById('filterContent');
+      const filterHeader = document.querySelector('.filter-header');
+      const toggleIcon = document.getElementById('toggleFilterIcon');
+      const toggleButton = document.getElementById('toggleFilterBtn');
+      
+      if (filterContent && filterHeader && toggleIcon && toggleButton) {
+        // Check if we have a saved preference
+        const isCollapsed = localStorage.getItem('filterCollapsed') === 'true';
+        
+        // Apply the saved state
+        if (isCollapsed) {
+          filterContent.classList.add('collapsed');
+          filterHeader.classList.add('collapsed');
+          toggleIcon.textContent = 'expand_more';
+        }
+        
+        // Add click handler to toggle button
+        toggleButton.addEventListener('click', toggleFilter);
+        
+        // Also allow clicking anywhere on the header to toggle
+        filterHeader.addEventListener('click', function(e) {
+          // Only toggle if the click wasn't on a button inside the header
+          if (e.target !== toggleButton && !toggleButton.contains(e.target)) {
+            toggleFilter();
+          }
+        });
+      }
+      
+      // Initialize the range slider after data is loaded (if not already initialized)
+      if (allStatusData.length > 0) {
+        initDateRangeSlider();
       }
     });
 
@@ -3612,20 +3941,13 @@
           }
         });
       });
-    }
-
-    // Update the timeframe indicator display
+    }    // Update the timeframe indicator display
     function updateTimeframeDisplay() {
-      const startDate = document.getElementById('startDate').value;
-      const startTime = document.getElementById('startTime').value;
-      const endDate = document.getElementById('endDate').value;
-      const endTime = document.getElementById('endTime').value;
+      if (!startDateFilter || !endDateFilter) return;
       
-      if (!startDate || !endDate) return;
-      
-      // Create full date objects
-      const startDateTime = new Date(`${startDate}T${startTime}:00`);
-      const endDateTime = new Date(`${endDate}T${endTime}:00`);
+      // Use the same filter objects that are used elsewhere for consistency
+      const startDateTime = startDateFilter;
+      const endDateTime = endDateFilter;
       
       // Calculate time difference in milliseconds
       const timeDiff = endDateTime - startDateTime;
@@ -3634,6 +3956,11 @@
       const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      // Log for debugging
+      console.log("Timeframe display calculation:", {
+        startDateTime, endDateTime, timeDiff, days, hours, minutes
+      });
       
       // Format the duration text
       let durationText = '';
@@ -3651,7 +3978,7 @@
       
       // Update the timeframe display
       document.getElementById('timeframeDisplay').textContent = durationText;
-    }    // Timeframe navigation functions with a simpler approach avoiding time parsing issues
+    }// Timeframe navigation functions with a simpler approach avoiding time parsing issues
     function movePreviousPeriod() {
       // Get the current date and time values
       const startDate = document.getElementById('startDate').value;
@@ -3717,11 +4044,9 @@
       
       // Update the timeframe display
       updateTimeframeDisplay();
-      
-      // Update chart titles with new timeframe
-      updateChartTitles();
     }
-      function moveNextPeriod() {
+    
+    function moveNextPeriod() {
       // Get the current date and time values
       const startDate = document.getElementById('startDate').value;
       const startTime = document.getElementById('startTime').value || "00:00";
@@ -3786,9 +4111,6 @@
       
       // Update the timeframe display
       updateTimeframeDisplay();
-      
-      // Update chart titles with new timeframe
-      updateChartTitles();
     }
 
     // Improved function to dynamically determine the appropriate aggregation interval
@@ -3850,66 +4172,385 @@
       }
     }
 
-    // Update chart titles to reflect current timeframe
-    function updateChartTitles() {
-      const timeframeText = document.getElementById('timeframeDisplay').textContent;
+    // Initialize and setup the date range slider
+    function initDateRangeSlider() {
+      const sliderElement = document.getElementById('dateRangeSlider');
+      if (!sliderElement) return;
       
-      // Update errorTrendChart title
-      if (window.errorTrendChart instanceof Chart) {
-        window.errorTrendChart.options.plugins.title.text = `Fehlertypen-Verlauf (${timeframeText})`;
-        window.errorTrendChart.update();
+      // Get data range from all data
+      let minDate, maxDate;
+        // Find earliest and latest dates across all datasets
+      function findDateRange() {
+        let allDates = [];
+        
+        // Collect all timestamps from all datasets
+        [allStatusData, allErrorData, allPatternData, allInputData].forEach(dataset => {
+          if (!dataset || !dataset.length) return;
+          
+          dataset.forEach(entry => {
+            if (entry && entry.Zeitpunkt) {
+              try {
+                // Parse date correctly - use standard format from your data
+                const dateStr = entry.Zeitpunkt;
+                const date = new Date(dateStr);
+                
+                // Validate that the resulting date is valid before adding it
+                if (!isNaN(date.getTime())) {
+                  allDates.push(date);
+                } else {
+                  console.warn("Invalid date format:", dateStr);
+                }
+              } catch (e) {
+                console.warn("Invalid date:", entry.Zeitpunkt, e);
+              }
+            }
+          });
+        });
+        
+        console.log("All dates found:", allDates.length);
+        
+        // Sort dates and get min/max
+        if (allDates.length) {
+          allDates.sort((a, b) => a - b);
+          
+          // Log the actual min/max found in data for debugging
+          console.log("Min date from data:", allDates[0]);
+          console.log("Max date from data:", allDates[allDates.length - 1]);
+          
+          return {
+            min: allDates[0],
+            max: allDates[allDates.length - 1]
+          };
+        }
+        
+        // Default if no dates found
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        console.log("No valid dates found - using defaults:", oneWeekAgo, "to", now);
+        
+        return {
+          min: oneWeekAgo, // 1 week ago
+          max: now
+        };
+      }
+        const dateRange = findDateRange();
+      minDate = dateRange.min;
+      maxDate = dateRange.max;
+      
+      // Ensure max date doesn't exceed current time
+      const currentTime = new Date();
+      if (maxDate > currentTime) {
+        console.log("Max date exceeds current time, limiting to now:", maxDate, "→", currentTime);
+        maxDate = currentTime;
       }
       
-      // Update errorRateChart title
-      if (window.errorRateChart instanceof Chart) {
-        window.errorRateChart.options.plugins.title.text = `Fehlerrate-Verlauf (${timeframeText})`;
-        window.errorRateChart.update();
+      // Add 1 hour buffer to max date (but don't exceed current time + 1 hour)
+      const maxAllowedTime = new Date(Math.min(
+        maxDate.getTime() + 60 * 60 * 1000,
+        currentTime.getTime() + 60 * 60 * 1000
+      ));
+      maxDate = maxAllowedTime;
+      
+      // Current filter values, defaulting to full range if not set
+      const startTime = startDateFilter || minDate;
+      const endTime = endDateFilter || maxDate;
+      
+      // Create or update the slider
+      if (window.dateSlider) {
+        window.dateSlider.destroy();
       }
       
-      // Update throughputChart title
-      if (window.throughputChart instanceof Chart) {
-        window.throughputChart.options.plugins.title.text = `Durchsatz-Verlauf (${timeframeText})`;
-        window.throughputChart.update();
-      }
+      // Format timestamps for tooltips and display
+      function formatSliderDate(timestamp) {
+        const date = new Date(timestamp);
+        return moment(date).format('DD.MM.YYYY HH:mm');
+      }      // Create the slider
+      window.dateSlider = noUiSlider.create(sliderElement, {
+        start: [startTime.getTime(), endTime.getTime()],
+        connect: true,
+        range: {
+          'min': minDate.getTime(),
+          'max': maxDate.getTime()
+        },
+        step: 60 * 1000, // 1 minute steps
+        format: {
+          to: value => Math.round(value),
+          from: value => Math.round(value)
+        },
+        // Disable the default tooltips as we'll create our own duration tooltip
+        tooltips: false,
+        // Enable dragging the middle bar to move the entire range
+        behaviour: 'drag',
+        // Enable dragging individual handles too
+        dragAll: true
+      });
+        // Add custom duration tooltip to the slider container
+      // Note: we'll add it to the container instead of the connecting bar which might not be accessible
+      const durationTooltip = document.createElement('div');
+      durationTooltip.id = 'sliderDurationTooltip';
+      durationTooltip.className = 'slider-duration-tooltip';
+      durationTooltip.style.position = 'absolute';
+      durationTooltip.style.top = '-30px';
+      durationTooltip.style.left = '50%';
+      durationTooltip.style.transform = 'translateX(-50%)';
+      durationTooltip.style.backgroundColor = 'var(--accent-color)';
+      durationTooltip.style.color = 'white';
+      durationTooltip.style.padding = '4px 8px';
+      durationTooltip.style.borderRadius = '4px';
+      durationTooltip.style.fontSize = '12px';
+      durationTooltip.style.whiteSpace = 'nowrap';
+      durationTooltip.style.zIndex = '5';
+      durationTooltip.style.display = 'block';
+      sliderElement.style.position = 'relative'; // Ensure tooltip is positioned relative to slider
+      sliderElement.appendChild(durationTooltip);      // Use the same global formatting function that will be used in both places
       
-      // Update X-axis labels too
-      updateChartXAxisLabels();
+      // Set initial tooltip text
+      durationTooltip.textContent = formatDuration(startTime.getTime(), endTime.getTime());
+      
+      // Update timestamp displays
+      document.getElementById('sliderStartTimestamp').textContent = 
+        'Start: ' + formatSliderDate(startTime);
+      document.getElementById('sliderEndTimestamp').textContent = 
+        'Ende: ' + formatSliderDate(endTime);
+      
+      // Generate markers for significant time points
+      createTimeMarkers(minDate, maxDate);      // Handle slider changes
+      window.dateSlider.on('update', function(values, handle) {
+        const timestamps = values.map(Number);
+        
+        // Update timestamp displays
+        document.getElementById('sliderStartTimestamp').textContent = 
+          'Start: ' + formatSliderDate(timestamps[0]);
+        document.getElementById('sliderEndTimestamp').textContent = 
+          'Ende: ' + formatSliderDate(timestamps[1]);
+          
+        // Update duration tooltip by direct ID reference
+        const durationTooltip = document.getElementById('sliderDurationTooltip');
+        if (durationTooltip) {
+          // Reuse the formatDuration function
+          const durationText = formatDuration(timestamps[0], timestamps[1]);
+          durationTooltip.textContent = durationText;
+          
+          // Also update position to center over the selected range
+          // This ensures it stays centered over the blue connecting bar
+          const sliderRect = sliderElement.getBoundingClientRect();
+          const lowerHandle = sliderElement.querySelector('.noUi-handle-lower');
+          const upperHandle = sliderElement.querySelector('.noUi-handle-upper');
+          
+          if (lowerHandle && upperHandle) {
+            const lowerPos = lowerHandle.getBoundingClientRect().left - sliderRect.left;
+            const upperPos = upperHandle.getBoundingClientRect().left - sliderRect.left;
+            const center = lowerPos + (upperPos - lowerPos) / 2;
+            
+            durationTooltip.style.left = center + 'px';
+          }
+        }
+      });// Apply filter when slider changes end
+      window.dateSlider.on('change', function(values) {
+        console.log("Slider change event triggered with values:", values);
+        
+        const timestamps = values.map(Number);
+        
+        // Create Date objects
+        const newStartDate = new Date(timestamps[0]);
+        const newEndDate = new Date(timestamps[1]);
+        
+        console.log("New date range:", newStartDate, newEndDate);
+        
+        // Update input fields
+        const formatDate = (date) => {
+          const year = date.getFullYear();
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const day = date.getDate().toString().padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        
+        const formatTime = (date) => {
+          return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        };
+        
+        // Set the date and time input fields
+        document.getElementById('startDate').value = formatDate(newStartDate);
+        document.getElementById('startTime').value = formatTime(newStartDate);
+        document.getElementById('endDate').value = formatDate(newEndDate);
+        document.getElementById('endTime').value = formatTime(newEndDate);
+        
+        // Update displays
+        updateDateDisplay('startDate');
+        updateTimeDisplay('startTime');
+        updateDateDisplay('endDate');
+        updateTimeDisplay('endTime');
+        
+        // Update filter variables directly
+        startDateFilter = newStartDate;
+        endDateFilter = newEndDate;
+        endDateFilter.setSeconds(59, 999); // Set to end of minute
+        
+        // Apply filters and update charts
+        applyFilters();
+        processAllData();
+        updateTimeframeDisplay();
+        
+        // Update slider timestamps
+        document.getElementById('sliderStartTimestamp').textContent = 
+          'Start: ' + formatSliderDate(newStartDate);
+        document.getElementById('sliderEndTimestamp').textContent = 
+          'Ende: ' + formatSliderDate(newEndDate);
+      });
+      
+      // Add event listeners to the shift range buttons
+      document.getElementById('shiftRangeLeft').addEventListener('click', function() {
+        shiftDateRange(-1);
+      });
+      
+      document.getElementById('shiftRangeRight').addEventListener('click', function() {
+        shiftDateRange(1);
+      });
     }
     
-    // Update X-axis labels to match timeframe
-    function updateChartXAxisLabels() {
-      const timeframeText = document.getElementById('timeframeDisplay').textContent;
+    // Create time markers for the slider
+    function createTimeMarkers(minDate, maxDate) {
+      const markersContainer = document.getElementById('sliderMarkers');
+      if (!markersContainer) return;
       
-      // Get the current timeframe dates
-      const startDate = new Date(document.getElementById('startDate').value + 'T' + (document.getElementById('startTime').value || '00:00'));
-      const endDate = new Date(document.getElementById('endDate').value + 'T' + (document.getElementById('endTime').value || '00:00'));
+      markersContainer.innerHTML = '';
       
-      // Determine appropriate axis labels based on the aggregation interval
-      const aggregation = getAggregationInterval(startDate, endDate);
-      let xAxisLabel = '';
-      switch(aggregation.interval) {
-        case 'hour': xAxisLabel = 'Stunde'; break;
-        case 'day': xAxisLabel = 'Tag'; break;
-        case 'week': xAxisLabel = 'Woche'; break;
-        default: xAxisLabel = 'Zeitraum';
+      // Determine appropriate interval based on timeframe length
+      const timeRange = maxDate - minDate;
+      const dayRange = timeRange / (24 * 60 * 60 * 1000);
+      
+      let interval;
+      let format;
+      
+      if (dayRange <= 1) { // Less than a day
+        interval = 3 * 60 * 60 * 1000; // Every 3 hours
+        format = 'HH:mm';
+      } else if (dayRange <= 7) { // Less than a week
+        interval = 24 * 60 * 60 * 1000; // Daily
+        format = 'DD.MM';
+      } else if (dayRange <= 31) { // Less than a month
+        interval = 7 * 24 * 60 * 60 * 1000; // Weekly
+        format = 'DD.MM';
+      } else { // More than a month
+        interval = 30 * 24 * 60 * 60 * 1000; // Monthly
+        format = 'MM/YY';
       }
       
-      // Update errorTrendChart X-axis title
-      if (window.errorTrendChart instanceof Chart) {
-        window.errorTrendChart.options.scales.x.title.text = `${xAxisLabel} (${timeframeText})`;
-        window.errorTrendChart.update();
+      // Generate markers
+      const totalWidth = markersContainer.offsetWidth;
+      let currentTime = new Date(minDate);
+      
+      while (currentTime < maxDate) {
+        const markerTime = new Date(currentTime);
+        
+        // Calculate position as percentage
+        const percent = (markerTime - minDate) / (maxDate - minDate) * 100;
+        
+        // Create marker element
+        const marker = document.createElement('div');
+        marker.className = 'slider-marker';
+        marker.style.left = `${percent}%`;
+        
+        // Create label
+        const label = document.createElement('div');
+        label.className = 'slider-marker-label';
+        label.style.left = `${percent}%`;
+        label.textContent = moment(markerTime).format(format);
+        
+        markersContainer.appendChild(marker);
+        markersContainer.appendChild(label);
+        
+        // Move to next interval
+        currentTime = new Date(currentTime.getTime() + interval);
+      }
+    }
+
+    // Function to shift the entire date range by a percentage of its current span
+    function shiftDateRange(direction) {
+      // Check if slider exists
+      if (!window.dateSlider) return;
+      
+      // Get current range values
+      const currentValues = window.dateSlider.get().map(Number);
+      const startTime = currentValues[0];
+      const endTime = currentValues[1];
+      
+      // Calculate range duration
+      const rangeDuration = endTime - startTime;
+      
+      // Shift by 25% of current range
+      const shiftAmount = rangeDuration * 0.25 * direction;
+      
+      // Calculate new values
+      const newStart = startTime + shiftAmount;
+      const newEnd = endTime + shiftAmount;
+      
+      // Get slider min/max values from noUiSlider
+      const sliderRange = window.dateSlider.options.range;
+      const minBound = sliderRange.min;
+      const maxBound = sliderRange.max;
+      
+      // Check if new range is within bounds
+      if (newStart < minBound) {
+        // If shifting would exceed lower bound, snap to minimum
+        window.dateSlider.set([minBound, minBound + rangeDuration]);
+      } else if (newEnd > maxBound) {
+        // If shifting would exceed upper bound, snap to maximum
+        window.dateSlider.set([maxBound - rangeDuration, maxBound]);
+      } else {
+        // Otherwise shift normally
+        window.dateSlider.set([newStart, newEnd]);
+      }
+    }    // Global function to format duration consistently across the dashboard
+    function formatDuration(startTime, endTime) {
+      // Calculate time difference in milliseconds
+      const timeDiff = endTime - startTime;
+      
+      // Convert to days, hours, minutes
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      // Format the duration text
+      let durationText = '';
+      if (days > 0) {
+        durationText += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+        if (hours > 0 || minutes > 0) durationText += ', ';
+      }
+      if (hours > 0) {
+        durationText += `${hours} ${hours === 1 ? 'Stunde' : 'Stunden'}`;
+        if (minutes > 0) durationText += ', ';
+      }
+      if (minutes > 0 || (days === 0 && hours === 0)) {
+        durationText += `${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'}`;
       }
       
-      // Update errorRateChart X-axis title
-      if (window.errorRateChart instanceof Chart) {
-        window.errorRateChart.options.scales.x.title.text = `${xAxisLabel} (${timeframeText})`;
-        window.errorRateChart.update();
-      }
+      return durationText;
+    }
+    
+    // Toggle filter visibility
+    function toggleFilter() {
+      const filterContent = document.getElementById('filterContent');
+      const filterHeader = document.querySelector('.filter-header');
+      const toggleIcon = document.getElementById('toggleFilterIcon');
       
-      // Update throughputChart X-axis title
-      if (window.throughputChart instanceof Chart) {
-        window.throughputChart.options.scales.x.title.text = `${xAxisLabel} (${timeframeText})`;
-        window.throughputChart.update();
+      // Toggle collapsed state
+      if (filterContent.classList.contains('collapsed')) {
+        // Expand
+        filterContent.classList.remove('collapsed');
+        filterHeader.classList.remove('collapsed');
+        toggleIcon.textContent = 'expand_less';
+        
+        // Store preference in localStorage
+        localStorage.setItem('filterCollapsed', 'false');
+      } else {
+        // Collapse
+        filterContent.classList.add('collapsed');
+        filterHeader.classList.add('collapsed');
+        toggleIcon.textContent = 'expand_more';
+        
+        // Store preference in localStorage
+        localStorage.setItem('filterCollapsed', 'true');
       }
     }
   </script>

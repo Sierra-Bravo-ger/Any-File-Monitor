@@ -20,18 +20,48 @@ $downloads = @{
     "$jsDir\moment.min.js" = "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"
     "$jsDir\moment-de.js" = "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.js"
     "$jsDir\chartjs-chart-matrix.min.js" = "https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@1.1.1/dist/chartjs-chart-matrix.min.js"
+    # NoUiSlider hinzufügen
+    "$jsDir\nouislider.min.js" = "https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"
+    "$cssDir\nouislider.min.css" = "https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
 }
 
 # Dateien herunterladen
 foreach ($file in $downloads.Keys) {
     $url = $downloads[$file]
     Write-Host "Lade herunter: $url -> $file" -ForegroundColor Cyan
+    
+    # Check if file already exists (try to use local files first if needed)
+    if (Test-Path $file) {
+        $urlBackup = $url
+        if ($file -like '*nouislider*' -and $url -like 'https://cdnjs*') {
+            # Try alternate URL for noUISlider if the primary URL fails
+            $url = $url -replace 'https://cdnjs.cloudflare.com/', 'https://afmdemo.madmoench.de/'
+            Write-Host "  Datei bereits vorhanden, aber verwende alternative URL für erneuten Download: $url" -ForegroundColor Yellow
+        } else {
+            Write-Host "  Datei bereits vorhanden, überspringe Download" -ForegroundColor Yellow
+            continue
+        }
+    }
+    
     try {
         Invoke-WebRequest -Uri $url -OutFile $file -ErrorAction Stop
         Write-Host "  Erfolgreich heruntergeladen" -ForegroundColor Green
     }
     catch {
-        Write-Host "  Fehler beim Herunterladen: $_" -ForegroundColor Red
+        # If it's noUISlider and the download fails, try the alternative URL
+        if ($file -like '*nouislider*' -and $url -like 'https://cdnjs*') {
+            $alternativeUrl = $url -replace 'https://cdnjs.cloudflare.com/', 'https://afmdemo.madmoench.de/'
+            Write-Host "  Versuche alternative URL: $alternativeUrl" -ForegroundColor Yellow
+            try {
+                Invoke-WebRequest -Uri $alternativeUrl -OutFile $file -ErrorAction Stop
+                Write-Host "  Erfolgreich mit alternativer URL heruntergeladen" -ForegroundColor Green
+            }
+            catch {
+                Write-Host "  Fehler beim Herunterladen (auch mit alternativer URL): $_" -ForegroundColor Red
+            }
+        } else {
+            Write-Host "  Fehler beim Herunterladen: $_" -ForegroundColor Red
+        }
     }
 }
 
