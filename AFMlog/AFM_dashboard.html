@@ -136,19 +136,40 @@
       color: var(--card-title-text-color);
       background-color: transparent;
     }    .mdl-card__supporting-text {
-      max-height: 2000px; /* Large enough to contain all content */
+      position: relative;
       overflow: hidden;
-      transition: max-height 0.3s ease-out;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                  padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       padding: 16px;
+      margin: 0 auto;
+      border-radius: 0 0 4px 4px;
+      max-height: 2000px; /* Large enough for all content */
     }
+    
     .mdl-card__supporting-text.collapsed {
-      max-height: 0;
+      max-height: 0 !important;
       padding: 0 !important;
-      margin: 0;
-      border-top: none;
+      margin: 0 !important;
+      opacity: 0;
+      border: none !important;
+      overflow: hidden !important;
+      display: none !important;
+      pointer-events: none;
     }
+    
     .mdl-card.collapsed-card {
       margin-bottom: 8px;
+    }
+    
+    /* Add these new rules to ensure chart containers collapse */
+    .mdl-card__supporting-text.collapsed .chart-container {
+      display: none !important;
+    }
+    /* More efficient way to disable canvas rendering when collapsed */
+    .mdl-card__supporting-text.collapsed canvas {
+      /* Hide but keep in document for quicker reactivation */
+      display: none !important;
     }
     .mdl-data-table {
       width: 100%;
@@ -4701,8 +4722,7 @@
         // Store preference in localStorage
         localStorage.setItem('filterCollapsed', 'true');
       }
-    }
-      // Toggle card content visibility
+    }    // Toggle card content visibility - Material 3 approach
     function toggleCard(cardId) {
       const card = document.getElementById(cardId);
       const cardContent = card.querySelector('.mdl-card__supporting-text');
@@ -4712,38 +4732,47 @@
       
       // Toggle collapsed state
       if (cardContent.classList.contains('collapsed')) {
-        // Expand
-        cardContent.classList.remove('collapsed');
-        card.classList.remove('collapsed-card');
+        // EXPAND: First make visible before animating height
+        
+        // Step 1: Change icon immediately for visual feedback
         toggleIcon.textContent = 'expand_less';
         
-        // Restore original height after a small delay to allow animation
+        // Step 2: Remove collapsed class to trigger CSS transitions
+        cardContent.classList.remove('collapsed');
+        card.classList.remove('collapsed-card');
+        
+        // Step 3: Let CSS handle the transition and avoid inline styles
+        // This will use the max-height defined in CSS instead
+        
+        // Step 4: Make canvases visible again
+        cardContent.querySelectorAll('canvas').forEach(canvas => {
+          canvas.style.visibility = 'visible';
+        });
+        
+        // Step 5: Trigger chart redraw after animation completes
         setTimeout(() => {
-          cardContent.style.height = '';
-          cardContent.style.overflow = '';
-        }, 10);
+          window.dispatchEvent(new Event('resize'));
+        }, 350); // Slightly longer than transition
         
         // Store preference in localStorage
         localStorage.setItem(`card_${cardId}_collapsed`, 'false');
       } else {
-        // Set explicit height before collapsing for smooth animation
-        const originalHeight = cardContent.scrollHeight;
-        cardContent.style.height = originalHeight + 'px';
-        cardContent.style.overflow = 'hidden';
+        // COLLAPSE: First set height to 0, then hide
         
-        // Force reflow
-        cardContent.offsetHeight;
+        // Step 1: Change icon immediately for visual feedback
+        toggleIcon.textContent = 'expand_more';
         
-        // Collapse
-        requestAnimationFrame(() => {
-          cardContent.classList.add('collapsed');
-          card.classList.add('collapsed-card');
-          cardContent.style.height = '0px';
-          toggleIcon.textContent = 'expand_more';
-          
-          // Store preference in localStorage
-          localStorage.setItem(`card_${cardId}_collapsed`, 'true');
+        // Step 2: Hide canvas elements immediately to save rendering resources
+        cardContent.querySelectorAll('canvas').forEach(canvas => {
+          canvas.style.visibility = 'hidden';
         });
+        
+        // Step 3: Add collapsed classes to trigger CSS transitions
+        cardContent.classList.add('collapsed');
+        card.classList.add('collapsed-card');
+        
+        // Store preference in localStorage
+        localStorage.setItem(`card_${cardId}_collapsed`, 'true');
       }
     }
   </script>
