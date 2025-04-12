@@ -674,10 +674,14 @@
       top: 8px;
       right: 16px;
       z-index: 10;
-    }
-
-    .mdl-menu__item {
+    }    .mdl-menu__item {
       color: var(--text-color);
+    }
+    
+    .mdl-menu__item:hover {
+      background-color: rgba(63, 81, 181, 0.1);
+      color: var(--accent-color);
+      transition: background-color 0.2s, color 0.2s;
     }
 
     .mdl-menu {
@@ -973,16 +977,15 @@
           </div>
           
           <!-- Timeframe Indicator -->
-          <div class="timeframe-indicator">
-            <div class="timeframe-controls">
-              <button class="timeframe-button" onclick="shiftTimeframe(-1)">
+          <div class="timeframe-indicator">      <div class="timeframe-controls">
+              <button class="timeframe-button" onclick="movePreviousPeriod()">
                 <i class="material-icons">navigate_before</i>
               </button>
               <div class="timeframe-content">
                 <span class="timeframe-indicator-label">Zeitraum</span>
                 <span class="timeframe-indicator-value" id="timeframeDisplay">01.01.23 00:00 - 02.01.23 23:59</span>
               </div>
-              <button class="timeframe-button" onclick="shiftTimeframe(1)">
+              <button class="timeframe-button" onclick="moveNextPeriod()">
                 <i class="material-icons">navigate_next</i>
               </button>
             </div>
@@ -1521,25 +1524,25 @@
       const today = new Date();
       const todayFormatted = today.toISOString().split('T')[0]; // YYYY-MM-DD Format
       
-      // Gestriges Datum
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayFormatted = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD Format
+      // Morgiges Datum
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowFormatted = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD Format
       
       // Eingabefelder mit den Werten füllen
-      document.getElementById('startDate').value = yesterdayFormatted;
-      document.getElementById('endDate').value = todayFormatted;
+      document.getElementById('startDate').value = todayFormatted;
+      document.getElementById('endDate').value = tomorrowFormatted;
       
-      // Uhrzeitwerte setzen (00:00 für Start und 00:00 für Ende)
+      // Uhrzeitwerte setzen (00:00 für beide)
       document.getElementById('startTime').value = '00:00';
       document.getElementById('endTime').value = '00:00';
       
       // Filter-Variablen setzen
-      startDateFilter = new Date(yesterday);
-      startDateFilter.setHours(0, 0, 0, 0); // Beginn des Tages (00:00:00)
+      startDateFilter = new Date(today);
+      startDateFilter.setHours(0, 0, 0, 0); // Beginn des heutigen Tages (00:00:00)
       
-      endDateFilter = new Date(today);
-      endDateFilter.setHours(0, 0, 0, 0); // Beginn des Tages (00:00:00)
+      endDateFilter = new Date(tomorrow);
+      endDateFilter.setHours(0, 0, 0, 0); // Beginn des morgigen Tages (00:00:00)
       
       // Initialize date and time displays
       initDateTimeDisplays();
@@ -1570,40 +1573,34 @@
           link.classList.remove('is-active');
         }
       });
-    }
-
-    // Datum-Filter anwenden
+    }    // Datum-Filter anwenden
     function applyDateFilter() {
       const startInput = document.getElementById('startDate');
       const endInput = document.getElementById('endDate');
       const startTimeInput = document.getElementById('startTime');
       const endTimeInput = document.getElementById('endTime');
       
-      // Vollständige Zeitstempel erstellen, die Datum und Uhrzeit kombinieren
+      // Vollständige Zeitstempel erstellen, die Datum und Uhrzeit korrekt kombinieren
       if (startInput.value) {
-        const startDate = new Date(startInput.value);
-        if (startTimeInput.value) {
-          const [hours, minutes] = startTimeInput.value.split(':').map(num => parseInt(num));
-          startDate.setHours(hours, minutes, 0, 0);
-        } else {
-          startDate.setHours(0, 0, 0, 0); // Beginn des Tages, wenn keine Zeit angegeben
-        }
-        startDateFilter = startDate;
-        console.log("Start filter with time:", startDateFilter);
+        // Verwende direkt die ISO-Datumszeit-Kombination für korrekte Parsung
+        const startTimeStr = startTimeInput.value || "00:00";
+        const startDateTime = `${startInput.value}T${startTimeStr}`;
+        startDateFilter = new Date(startDateTime);
+        console.log("Start filter with time:", startDateTime, startDateFilter);
       } else {
         startDateFilter = null;
       }
       
       if (endInput.value) {
-        const endDate = new Date(endInput.value);
-        if (endTimeInput.value) {
-          const [hours, minutes] = endTimeInput.value.split(':').map(num => parseInt(num));
-          endDate.setHours(hours, minutes, 59, 999); // Sekunden und Millisekunden auf max für Ende der Minute
-        } else {
-          endDate.setHours(23, 59, 59, 999); // Ende des Tages, wenn keine Zeit angegeben
-        }
+        // Verwende direkt die ISO-Datumszeit-Kombination für korrekte Parsung
+        const endTimeStr = endTimeInput.value || "00:00";
+        const endDateTime = `${endInput.value}T${endTimeStr}`;
+        const endDate = new Date(endDateTime);
+        
+        // Setze die Sekunden und Millisekunden auf Ende der Minute
+        endDate.setSeconds(59, 999);
         endDateFilter = endDate;
-        console.log("End filter with time:", endDateFilter);
+        console.log("End filter with time:", endDateTime, endDateFilter);
       } else {
         endDateFilter = null;
       }
@@ -1740,7 +1737,7 @@
       });
     }
 
-    // Status-Daten verarbeiten
+    // Status-Daten verarbeiten with improved charting
     function processStatusData(results) {
       if (!results.data || results.data.length === 0) {
         document.getElementById('statusTable').innerHTML = '<p>Keine Status-Daten verfügbar.</p>';
@@ -1758,54 +1755,84 @@
 
       // Berechne die Summen für den Filterzeitraum
       if (results.data.length > 0) {
-        // Für Input, Error und Archiv den höchsten Wert im gefilterten Zeitraum nehmen
-        let inputVal = 0;
-        let errorVal = 0;
-        let archiveVal = 0;
-        
         // Den letzten Eintrag im gefilterten Zeitraum verwenden
         const lastEntry = results.data[results.data.length - 1];
         
         // Werte aus dem letzten Eintrag extrahieren und sicherstellen, dass sie gültige Zahlen sind
-        inputVal = parseInt(lastEntry['Input'] || 0);
-        errorVal = parseInt(lastEntry['Error'] || 0);
-        archiveVal = parseInt(lastEntry['Archiv'] || 0);
-        
-        // Sicherstellen, dass keine negativen Werte verwendet werden
-        inputVal = Math.max(0, inputVal);
-        errorVal = Math.max(0, errorVal);
-        archiveVal = Math.max(0, archiveVal);
+        const inputVal = parseInt(lastEntry['Input'] || 0);
+        const errorVal = parseInt(lastEntry['Error'] || 0);
+        const archiveVal = parseInt(lastEntry['Archiv'] || 0);
         
         // Werte anzeigen
         document.getElementById('inputFiles').textContent = inputVal;
         document.getElementById('errorFiles').textContent = errorVal;
         document.getElementById('archiveFiles').textContent = archiveVal;
         
-        // Gesamtzahl der Dateien berechnen durch einfache Addition
+        // Gesamtzahl der Dateien berechnen
         const totalFiles = inputVal + errorVal + archiveVal;
         document.getElementById('totalFiles').textContent = totalFiles;
         
-        // Fehlerrate berechnen basierend auf den gefilterten Fehlerdaten
+        // Fehlerrate berechnen
         calculateErrorRate();
       }
 
-      // Daten für die Charts vorbereiten
+      // Group data by hour for better visualization
+      const inputByHour = {};
+      const errorByHour = {};
+      const archiveByHour = {};
+      
+      // Process data points in chronological order
+      results.data.sort((a, b) => new Date(a.Zeitpunkt) - new Date(b.Zeitpunkt));
+      
+      results.data.forEach(entry => {
+        if (!entry.Zeitpunkt) return;
+        
+        // Extract date and round to hour
+        const timestamp = new Date(entry.Zeitpunkt);
+        const hourKey = new Date(
+          timestamp.getFullYear(),
+          timestamp.getMonth(),
+          timestamp.getDate(),
+          timestamp.getHours()
+        ).toISOString();
+        
+        // Store values by hourly buckets
+        if (!inputByHour[hourKey]) {
+          inputByHour[hourKey] = { sum: 0, count: 0 };
+          errorByHour[hourKey] = { sum: 0, count: 0 };
+          archiveByHour[hourKey] = { sum: 0, count: 0 };
+        }
+        
+        // Sum values for this hour
+        inputByHour[hourKey].sum += parseInt(entry['Input'] || 0);
+        inputByHour[hourKey].count++;
+        errorByHour[hourKey].sum += parseInt(entry['Error'] || 0);
+        errorByHour[hourKey].count++;
+        archiveByHour[hourKey].sum += parseInt(entry['Archiv'] || 0);
+        archiveByHour[hourKey].count++;
+      });
+      
+      // Create labels and data arrays for the charts
       const labels = [];
       const inputData = [];
       const errorData = [];
       const archiveData = [];
+      
+      // Format and prepare the data
+      Object.entries(inputByHour)
+        .sort(([a], [b]) => a.localeCompare(b)) // Sort by timestamp
+        .forEach(([hourKey, values]) => {
+          const date = new Date(hourKey);
+          const formattedHour = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')} ${date.getHours()}:00`;
+          labels.push(formattedHour);
+          
+          // Calculate average values for each hour
+          inputData.push(Math.round(inputByHour[hourKey].sum / inputByHour[hourKey].count));
+          errorData.push(Math.round(errorByHour[hourKey].sum / errorByHour[hourKey].count));
+          archiveData.push(Math.round(archiveByHour[hourKey].sum / archiveByHour[hourKey].count));
+        });
 
-      // Daten aus den Ergebnissen extrahieren
-      results.data.forEach(entry => {
-        if (entry.Zeitpunkt) {
-          labels.push(entry.Zeitpunkt);
-          inputData.push(parseInt(entry['Input'] || 0));
-          errorData.push(parseInt(entry['Error'] || 0));
-          archiveData.push(parseInt(entry['Archiv'] || 0));
-        }
-      });
-
-      // Input-Chart erstellen
+      // Create Input Chart with improved styling
       const ctxInput = document.getElementById('inputChart').getContext('2d');
       if (window.inputChart instanceof Chart) {
         window.inputChart.destroy();
@@ -1815,15 +1842,17 @@
         type: 'line',
         data: {
           labels: labels,
-          datasets: [
-            {
-              label: 'Input',
-              data: inputData,
-              borderColor: 'rgba(54, 162, 235, 1)',
-              backgroundColor: 'rgba(54, 162, 235, 0.2)',
-              tension: 0.1
-            }
-          ]
+          datasets: [{
+            label: 'Input',
+            data: inputData,
+            borderColor: 'rgba(54, 162, 235, 1)',
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
         },
         options: {
           responsive: true,
@@ -1839,14 +1868,30 @@
             x: {
               title: {
                 display: true,
-                text: 'Zeitpunkt'
+                text: 'Zeitraum (Stunde)'
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                title: function(context) {
+                  return context[0].label;
+                },
+                label: function(context) {
+                  return `Input: ${context.raw} Dateien`;
+                }
               }
             }
           }
         }
       });
 
-      // Error-Chart erstellen
+      // Create Error Chart with improved styling
       const ctxError = document.getElementById('errorChart').getContext('2d');
       if (window.errorChart instanceof Chart) {
         window.errorChart.destroy();
@@ -1856,15 +1901,17 @@
         type: 'line',
         data: {
           labels: labels,
-          datasets: [
-            {
-              label: 'Fehler',
-              data: errorData,
-              borderColor: 'rgba(255, 99, 132, 1)',
-              backgroundColor: 'rgba(255, 99, 132, 0.2)',
-              tension: 0.1
-            }
-          ]
+          datasets: [{
+            label: 'Fehler',
+            data: errorData,
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
         },
         options: {
           responsive: true,
@@ -1880,14 +1927,30 @@
             x: {
               title: {
                 display: true,
-                text: 'Zeitpunkt'
+                text: 'Zeitraum (Stunde)'
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                title: function(context) {
+                  return context[0].label;
+                },
+                label: function(context) {
+                  return `Fehler: ${context.raw} Dateien`;
+                }
               }
             }
           }
         }
       });
 
-      // Archiv-Chart erstellen
+      // Create Archive Chart with improved styling
       const ctxArchive = document.getElementById('archiveChart').getContext('2d');
       if (window.archiveChart instanceof Chart) {
         window.archiveChart.destroy();
@@ -1897,15 +1960,17 @@
         type: 'line',
         data: {
           labels: labels,
-          datasets: [
-            {
-              label: 'Archiv',
-              data: archiveData,
-              borderColor: 'rgba(75, 192, 192, 1)',
-              backgroundColor: 'rgba(75, 192, 192, 0.2)',
-              tension: 0.1
-            }
-          ]
+          datasets: [{
+            label: 'Archiv',
+            data: archiveData,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
         },
         options: {
           responsive: true,
@@ -1921,7 +1986,23 @@
             x: {
               title: {
                 display: true,
-                text: 'Zeitpunkt'
+                text: 'Zeitraum (Stunde)'
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                title: function(context) {
+                  return context[0].label;
+                },
+                label: function(context) {
+                  return `Archiv: ${context.raw} Dateien`;
+                }
               }
             }
           }
@@ -2148,42 +2229,49 @@
     function createErrorTrendChart() {
       if (filteredPatternData.length === 0) return;
       
-      // Daten nach 15-Minuten-Intervall und Muster gruppieren (statt nach Stunde)
+      // Get the timeframe text directly for consistency
+      const timeframeText = document.getElementById('timeframeDisplay').textContent;
+      
+      // Get the current timeframe dates
+      const startDate = new Date(document.getElementById('startDate').value + 'T' + (document.getElementById('startTime').value || '00:00'));
+      const endDate = new Date(document.getElementById('endDate').value + 'T' + (document.getElementById('endTime').value || '00:00'));
+      
+      // Get appropriate aggregation settings based on the timeframe
+      const aggregation = getAggregationInterval(startDate, endDate);
+      
+      // Group errors by interval and pattern
       const errorTypesByInterval = {};
       const errorTypes = new Set();
       
       filteredPatternData.forEach(entry => {
         if (!entry.Zeitpunkt) return;
         
-        // Zeitpunkt zerlegen, um Stunde und Minute zu extrahieren
-        const [datePart, timePart] = entry.Zeitpunkt.split(' ');
-        const [hour, minute] = timePart.split(':');
-        
-        // Minute auf das nächste 15-Minuten-Intervall abrunden
-        const intervalMinute = Math.floor(parseInt(minute) / 15) * 15;
-        const formattedMinute = intervalMinute.toString().padStart(2, '0');
-        
-        // Formatierter Zeitstempel für 15-Minuten-Intervalle
-        const formattedDateTime = `${datePart} ${hour}:${formattedMinute}`;
+        // Extract timestamp and round to appropriate interval
+        const timestamp = new Date(entry.Zeitpunkt);
+        const intervalKey = aggregation.roundFn(timestamp).toISOString();
+        const displayLabel = aggregation.format(timestamp);
         const pattern = entry.Muster;
         
-        if (!errorTypesByInterval[formattedDateTime]) {
-          errorTypesByInterval[formattedDateTime] = {};
+        if (!errorTypesByInterval[intervalKey]) {
+          errorTypesByInterval[intervalKey] = {
+            displayLabel: displayLabel,
+            patterns: {}
+          };
         }
         
-        if (!errorTypesByInterval[formattedDateTime][pattern]) {
-          errorTypesByInterval[formattedDateTime][pattern] = 0;
+        if (!errorTypesByInterval[intervalKey].patterns[pattern]) {
+          errorTypesByInterval[intervalKey].patterns[pattern] = 0;
         }
         
-        errorTypesByInterval[formattedDateTime][pattern]++;
+        errorTypesByInterval[intervalKey].patterns[pattern]++;
         errorTypes.add(pattern);
       });
       
-      // Daten für Chart.js vorbereiten
-      const labels = Object.keys(errorTypesByInterval).sort();
-      const datasets = [];
+      // Prepare data for Chart.js
+      const sortedKeys = Object.keys(errorTypesByInterval).sort();
+      const labels = sortedKeys.map(key => errorTypesByInterval[key].displayLabel);
       
-      // Farben für verschiedene Fehlertypen
+      // Colors for different error types
       const colors = [
         'rgba(255, 99, 132, 1)',
         'rgba(54, 162, 235, 1)',
@@ -2193,20 +2281,36 @@
         'rgba(255, 159, 64, 1)'
       ];
       
-      // Ein Dataset pro Fehlertyp erstellen
+      // Create datasets
+      const datasets = [];
+      
+      // Create a dataset for each error type
       Array.from(errorTypes).forEach((type, index) => {
-        const data = labels.map(interval => errorTypesByInterval[interval][type] || 0);
+        const data = sortedKeys.map(key => errorTypesByInterval[key].patterns[type] || 0);
         
         datasets.push({
+          type: 'line',
           label: type,
           data: data,
           borderColor: colors[index % colors.length],
           backgroundColor: colors[index % colors.length].replace('1)', '0.2)'),
-          tension: 0.1
+          tension: 0.3,
+          fill: true,
+          pointRadius: 0,
+          pointHoverRadius: 3
         });
       });
       
-      // Chart erstellen
+      // Determine appropriate axis label based on the aggregation interval
+      let xAxisLabel = '';
+      switch(aggregation.interval) {
+        case 'hour': xAxisLabel = 'Stunde'; break;
+        case 'day': xAxisLabel = 'Tag'; break;
+        case 'week': xAxisLabel = 'Woche'; break;
+        default: xAxisLabel = 'Zeitraum';
+      }
+      
+      // Create chart
       const ctx = document.getElementById('errorTrendChart').getContext('2d');
       if (window.errorTrendChart instanceof Chart) {
         window.errorTrendChart.destroy();
@@ -2223,6 +2327,7 @@
           maintainAspectRatio: false,
           scales: {
             y: {
+              stacked: true,
               beginAtZero: true,
               title: {
                 display: true,
@@ -2230,9 +2335,10 @@
               }
             },
             x: {
+              stacked: true,
               title: {
                 display: true,
-                text: 'Datum und Zeit (15-Min-Intervall)'
+                text: `${xAxisLabel} (${timeframeText})`
               },
               ticks: {
                 maxRotation: 45,
@@ -2241,10 +2347,17 @@
             }
           },
           plugins: {
+            title: {
+              display: true,
+              text: `Fehlertypen-Verlauf (${timeframeText})`,
+              font: {
+                size: 16
+              }
+            },
             tooltip: {
+              mode: 'index',
               callbacks: {
                 title: function(context) {
-                  // Formatierung des Tooltip-Titels für bessere Lesbarkeit
                   return context[0].label;
                 }
               }
@@ -2258,24 +2371,71 @@
     function createErrorRateChart() {
       if (filteredStatusData.length === 0) return;
       
-      const labels = [];
-      const errorRates = [];
+      // Get the timeframe text directly for consistency
+      const timeframeText = document.getElementById('timeframeDisplay').textContent;
+      
+      // Get the current timeframe dates
+      const startDate = new Date(document.getElementById('startDate').value + 'T' + (document.getElementById('startTime').value || '00:00'));
+      const endDate = new Date(document.getElementById('endDate').value + 'T' + (document.getElementById('endTime').value || '00:00'));
+      
+      // Get appropriate aggregation settings based on the timeframe
+      const aggregation = getAggregationInterval(startDate, endDate);
+      
+      // Group data by the determined interval
+      const errorRateByInterval = {};
+      
+      // Sort data points chronologically
+      filteredStatusData.sort((a, b) => new Date(a.Zeitpunkt) - new Date(b.Zeitpunkt));
       
       filteredStatusData.forEach(entry => {
-        const total = parseInt(entry['Input'] || 0) + 
-                       parseInt(entry['Archiv'] || 0) + 
-                       parseInt(entry['Error'] || 0);
-        const errorCount = parseInt(entry['Error'] || 0);
-        const errorRate = total > 0 ? (errorCount / total) * 100 : 0;
+        if (!entry.Zeitpunkt) return;
         
-        labels.push(entry.Zeitpunkt.split(' ')[1]);
-        errorRates.push(errorRate);
+        // Extract date and round to appropriate interval
+        const timestamp = new Date(entry.Zeitpunkt);
+        const intervalKey = aggregation.roundFn(timestamp).toISOString();
+        
+        // Calculate error rate for this entry
+        const processed = parseInt(entry['Archiv'] || 0) + parseInt(entry['Error'] || 0);
+        const errorFiles = parseInt(entry['Error'] || 0);
+        const errorRate = processed > 0 ? (errorFiles / processed) * 100 : 0;
+        
+        // Store or update the interval error rate
+        if (!errorRateByInterval[intervalKey]) {
+          errorRateByInterval[intervalKey] = {
+            count: 0,
+            sum: 0,
+            timestamp: timestamp
+          };
+        }
+        
+        errorRateByInterval[intervalKey].sum += errorRate;
+        errorRateByInterval[intervalKey].count++;
       });
       
-      // Chart erstellen
+      // Calculate average error rate for each interval
+      const labels = [];
+      const data = [];
+      
+      Object.entries(errorRateByInterval)
+        .sort(([a], [b]) => a.localeCompare(b)) // Sort by timestamp
+        .forEach(([intervalKey, values]) => {
+          labels.push(aggregation.format(values.timestamp));
+          data.push((values.sum / values.count).toFixed(1)); // Format to 1 decimal place
+        });
+      
+      // Create the chart
       const ctx = document.getElementById('errorRateChart').getContext('2d');
       if (window.errorRateChart instanceof Chart) {
         window.errorRateChart.destroy();
+      }
+      
+      // Determine appropriate axis labels based on the aggregation interval
+      let xAxisLabel = '';
+      switch(aggregation.interval) {
+        case 'hour': xAxisLabel = 'Stunde'; break;
+        case 'day': xAxisLabel = 'Tag'; break;
+        case 'week': xAxisLabel = 'Woche'; break;
+        default: xAxisLabel = 'Zeitraum';
       }
       
       window.errorRateChart = new Chart(ctx, {
@@ -2284,10 +2444,14 @@
           labels: labels,
           datasets: [{
             label: 'Fehlerrate (%)',
-            data: errorRates,
-            borderColor: 'rgba(255, 99, 132, 1)',
+            data: data,
             backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            tension: 0.1
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+            pointHoverRadius: 5
           }]
         },
         options: {
@@ -2300,6 +2464,35 @@
                 display: true,
                 text: 'Fehlerrate (%)'
               }
+            },
+            x: {
+              title: {
+                display: true,
+                text: `${xAxisLabel} (${timeframeText})` // Dynamic label with timeframe
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: `Fehlerrate-Verlauf (${timeframeText})`, // Add timeframe to chart title
+              font: {
+                size: 16
+              }
+            },
+            tooltip: {
+              callbacks: {
+                title: function(context) {
+                  return context[0].label;
+                },
+                label: function(context) {
+                  return `Fehlerrate: ${context.raw}%`;
+                }
+              }
             }
           }
         }
@@ -2308,36 +2501,105 @@
 
     // Durchsatz-Diagramm erstellen
     function createThroughputChart() {
-      if (filteredStatusData.length === 0) return;
+      if (filteredStatusData.length <= 1) {
+        console.log("Not enough data for throughput chart");
+        return;
+      }
       
-      const labels = [];
-      const throughputData = [];
+      // Get the current timeframe for display and dynamic aggregation
+      const startDate = new Date(document.getElementById('startDate').value + 'T' + (document.getElementById('startTime').value || '00:00'));
+      const endDate = new Date(document.getElementById('endDate').value + 'T' + (document.getElementById('endTime').value || '00:00'));
+      const timeframeText = document.getElementById('timeframeDisplay').textContent;
+      
+      // Get appropriate aggregation settings based on the timeframe
+      const aggregation = getAggregationInterval(startDate, endDate);
+      
+      // Group data by the determined interval
+      const throughputByInterval = {};
+      let prevProcessed = null;
+      let prevTimestamp = null;
+      
+      // Process data points in chronological order
+      filteredStatusData.sort((a, b) => new Date(a.Zeitpunkt) - new Date(b.Zeitpunkt));
       
       filteredStatusData.forEach(entry => {
-        const total = parseInt(entry['Input'] || 0) + 
-                       parseInt(entry['Archiv'] || 0) + 
-                       parseInt(entry['Error'] || 0);
+        if (!entry.Zeitpunkt) return;
         
-        labels.push(entry.Zeitpunkt.split(' ')[1]);
-        throughputData.push(total);
+        // Extract date and round to appropriate interval
+        const timestamp = new Date(entry.Zeitpunkt);
+        const intervalKey = aggregation.roundFn(timestamp).toISOString();
+        
+        // Calculate total processed files (archive + error)
+        const processed = parseInt(entry['Archiv'] || 0) + parseInt(entry['Error'] || 0);
+        
+        // If we have previous data, calculate the throughput
+        if (prevProcessed !== null && prevTimestamp !== null) {
+          const hoursDiff = (timestamp - prevTimestamp) / (1000 * 60 * 60);
+          if (hoursDiff > 0) {
+            const filesDiff = processed - prevProcessed;
+            // Only record positive throughput (files being processed)
+            if (filesDiff > 0) {
+              const throughputPerHour = Math.round(filesDiff / hoursDiff);
+              
+              // Store or update the interval throughput
+              if (!throughputByInterval[intervalKey]) {
+                throughputByInterval[intervalKey] = {
+                  count: 0,
+                  sum: 0,
+                  timestamp: timestamp
+                };
+              }
+              
+              throughputByInterval[intervalKey].sum += throughputPerHour;
+              throughputByInterval[intervalKey].count++;
+            }
+          }
+        }
+        
+        prevProcessed = processed;
+        prevTimestamp = timestamp;
       });
       
-      // Chart erstellen
+      // Calculate average throughput for each interval
+      const labels = [];
+      const data = [];
+      
+      Object.entries(throughputByInterval)
+        .sort(([a], [b]) => a.localeCompare(b)) // Sort by timestamp
+        .forEach(([intervalKey, values]) => {
+          labels.push(aggregation.format(values.timestamp));
+          data.push(Math.round(values.sum / values.count));
+        });
+      
+      // Create the chart
       const ctx = document.getElementById('throughputChart').getContext('2d');
       if (window.throughputChart instanceof Chart) {
         window.throughputChart.destroy();
       }
       
+      // Determine appropriate axis labels based on the aggregation interval
+      let xAxisLabel = '';
+      switch(aggregation.interval) {
+        case 'hour': xAxisLabel = 'Stunde'; break;
+        case 'day': xAxisLabel = 'Tag'; break;
+        case 'week': xAxisLabel = 'Woche'; break;
+        default: xAxisLabel = 'Zeitraum';
+      }
+      
       window.throughputChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
           labels: labels,
           datasets: [{
-            label: 'Dateien pro Intervall',
-            data: throughputData,
+            label: 'Dateien pro Stunde',
+            data: data,
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
             borderColor: 'rgba(75, 192, 192, 1)',
-            borderWidth: 1
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+            pointHoverRadius: 5
           }]
         },
         options: {
@@ -2348,7 +2610,36 @@
               beginAtZero: true,
               title: {
                 display: true,
-                text: 'Anzahl der Dateien'
+                text: 'Durchsatz (Dateien/Stunde)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: `${xAxisLabel} (${timeframeText})` // Dynamic label with timeframe
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: `Durchsatz-Verlauf (${timeframeText})`, // Add timeframe to chart title
+              font: {
+                size: 16
+              }
+            },
+            tooltip: {
+              callbacks: {
+                title: function(context) {
+                  return context[0].label;
+                },
+                label: function(context) {
+                  return `Durchsatz: ${context.raw} Dateien/Stunde`;
+                }
               }
             }
           }
@@ -3403,50 +3694,198 @@
       
       // Update the timeframe display
       document.getElementById('timeframeDisplay').textContent = durationText;
-    }
-
-    // Function to shift the timeframe left or right
-    function shiftTimeframe(direction) {
+    }    // Timeframe navigation functions with a simpler approach avoiding time parsing issues
+    function movePreviousPeriod() {
+      // Get the current date and time values
       const startDate = document.getElementById('startDate').value;
-      const startTime = document.getElementById('startTime').value;
+      const startTime = document.getElementById('startTime').value || "00:00";
       const endDate = document.getElementById('endDate').value;
-      const endTime = document.getElementById('endTime').value;
+      const endTime = document.getElementById('endTime').value || "00:00";
       
       if (!startDate || !endDate) return;
       
-      // Create full date objects
-      const startDateTime = new Date(`${startDate}T${startTime}:00`);
-      const endDateTime = new Date(`${endDate}T${endTime}:00`);
+      // First calculate the exact duration in days
+      const startParts = startDate.split('-').map(Number);
+      const endParts = endDate.split('-').map(Number);
+      const startTimeParts = startTime.split(':').map(Number);
+      const endTimeParts = endTime.split(':').map(Number);
       
-      // Calculate the current timeframe duration in milliseconds
-      const timeframeDuration = endDateTime - startDateTime;
+      // Manually create Date objects to avoid timezone issues
+      const start = new Date(startParts[0], startParts[1]-1, startParts[2], startTimeParts[0], startTimeParts[1], 0);
+      const end = new Date(endParts[0], endParts[1]-1, endParts[2], endTimeParts[0], endTimeParts[1], 0);
       
-      // Create new start and end dates based on the direction
-      // direction = -1 moves backward in time, +1 moves forward
-      const newStartDateTime = new Date(startDateTime.getTime() + (direction * timeframeDuration));
-      const newEndDateTime = new Date(endDateTime.getTime() + (direction * timeframeDuration));
+      console.log("Previous period - manual dates:", { start, end });
       
-      // Format the dates for the inputs
-      const newStartDate = newStartDateTime.toISOString().split('T')[0];
-      const newStartTime = `${newStartDateTime.getHours().toString().padStart(2, '0')}:${newStartDateTime.getMinutes().toString().padStart(2, '0')}`;
+      // Calculate duration in milliseconds
+      const durationMs = end - start;
+      console.log("Duration in ms:", durationMs);
       
-      const newEndDate = newEndDateTime.toISOString().split('T')[0];
-      const newEndTime = `${newEndDateTime.getHours().toString().padStart(2, '0')}:${newEndDateTime.getMinutes().toString().padStart(2, '0')}`;
+      // Calculate new dates
+      const newStart = new Date(start.getTime() - durationMs);
+      const newEnd = new Date(end.getTime() - durationMs);
       
-      // Set the new values
-      document.getElementById('startDate').value = newStartDate;
-      document.getElementById('startTime').value = newStartTime;
-      document.getElementById('endDate').value = newEndDate;
-      document.getElementById('endTime').value = newEndTime;
+      console.log("Previous period - new dates:", { newStart, newEnd });
       
-      // Update displays
+      // Format date strings consistently
+      const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const formatTime = (date) => {
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      };
+      
+      // Update input fields
+      document.getElementById('startDate').value = formatDate(newStart);
+      document.getElementById('startTime').value = formatTime(newStart);
+      document.getElementById('endDate').value = formatDate(newEnd);
+      document.getElementById('endTime').value = formatTime(newEnd);
+      
+      // Update displays and apply filter
       updateDateDisplay('startDate');
       updateTimeDisplay('startTime');
       updateDateDisplay('endDate');
       updateTimeDisplay('endTime');
       
-      // Apply the new filter
-      applyDateFilter();
+      // Direct filter application (don't use applyDateFilter to avoid parsing issues)
+      startDateFilter = newStart;
+      endDateFilter = new Date(newEnd);
+      endDateFilter.setSeconds(59, 999); // End of minute
+      
+      applyFilters();
+      processAllData();
+      
+      // Update the timeframe display
+      updateTimeframeDisplay();
+    }
+    
+    function moveNextPeriod() {
+      // Get the current date and time values
+      const startDate = document.getElementById('startDate').value;
+      const startTime = document.getElementById('startTime').value || "00:00";
+      const endDate = document.getElementById('endDate').value;
+      const endTime = document.getElementById('endTime').value || "00:00";
+      
+      if (!startDate || !endDate) return;
+      
+      // First calculate the exact duration in days
+      const startParts = startDate.split('-').map(Number);
+      const endParts = endDate.split('-').map(Number);
+      const startTimeParts = startTime.split(':').map(Number);
+      const endTimeParts = endTime.split(':').map(Number);
+      
+      // Manually create Date objects to avoid timezone issues
+      const start = new Date(startParts[0], startParts[1]-1, startParts[2], startTimeParts[0], startTimeParts[1], 0);
+      const end = new Date(endParts[0], endParts[1]-1, endParts[2], endTimeParts[0], endTimeParts[1], 0);
+      
+      console.log("Next period - manual dates:", { start, end });
+      
+      // Calculate duration in milliseconds
+      const durationMs = end - start;
+      console.log("Duration in ms:", durationMs);
+      
+      // Calculate new dates
+      const newStart = new Date(start.getTime() + durationMs);
+      const newEnd = new Date(end.getTime() + durationMs);
+      
+      console.log("Next period - new dates:", { newStart, newEnd });
+      
+      // Format date strings consistently
+      const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const formatTime = (date) => {
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      };
+      
+      // Update input fields
+      document.getElementById('startDate').value = formatDate(newStart);
+      document.getElementById('startTime').value = formatTime(newStart);
+      document.getElementById('endDate').value = formatDate(newEnd);
+      document.getElementById('endTime').value = formatTime(newEnd);
+      
+      // Update displays and apply filter
+      updateDateDisplay('startDate');
+      updateTimeDisplay('startTime');
+      updateDateDisplay('endDate');
+      updateTimeDisplay('endTime');
+      
+      // Direct filter application (don't use applyDateFilter to avoid parsing issues)
+      startDateFilter = newStart;
+      endDateFilter = new Date(newEnd);
+      endDateFilter.setSeconds(59, 999); // End of minute
+      
+      applyFilters();
+      processAllData();
+      
+      // Update the timeframe display
+      updateTimeframeDisplay();
+    }
+
+    // Improved function to dynamically determine the appropriate aggregation interval
+    function getAggregationInterval(startDate, endDate) {
+      // Get the timeframe duration in milliseconds
+      const duration = endDate - startDate;
+      const hours = duration / (1000 * 60 * 60);
+      
+      // Define thresholds for different aggregation intervals
+      if (hours <= 24) {
+        // For timeframes <= 24 hours: aggregate by hour
+        return {
+          interval: 'hour',
+          format: (date) => `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')} ${date.getHours()}:00`,
+          roundFn: (timestamp) => new Date(
+            timestamp.getFullYear(),
+            timestamp.getMonth(),
+            timestamp.getDate(),
+            timestamp.getHours()
+          )
+        };
+      } else if (hours <= 7 * 24) { 
+        // For timeframes <= 1 week: aggregate by day
+        return {
+          interval: 'day',
+          format: (date) => `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}`,
+          roundFn: (timestamp) => new Date(
+            timestamp.getFullYear(),
+            timestamp.getMonth(),
+            timestamp.getDate()
+          )
+        };
+      } else if (hours <= 31 * 24) {
+        // For timeframes <= 1 month: aggregate by day
+        return {
+          interval: 'day',
+          format: (date) => `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}`,
+          roundFn: (timestamp) => new Date(
+            timestamp.getFullYear(),
+            timestamp.getMonth(),
+            timestamp.getDate()
+          )
+        };
+      } else {
+        // For timeframes > 1 month: aggregate by week
+        return {
+          interval: 'week',
+          format: (date) => {
+            const weekNumber = Math.ceil((date.getDate() + new Date(date.getFullYear(), date.getMonth(), 1).getDay()) / 7);
+            return `KW${weekNumber} ${date.toLocaleString('default', { month: 'short' })}`;
+          },
+          roundFn: (timestamp) => {
+            const date = new Date(timestamp);
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+            return new Date(date.setDate(diff));
+          }
+        };
+      }
     }
   </script>
 </body>
