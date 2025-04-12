@@ -116,15 +116,39 @@
       overflow: visible;
       background-color: var(--card-bg-color);
       box-shadow: var(--card-shadow);
+      transition: margin-bottom 0.3s ease-out;
     }
     .mdl-card__title {
       color: var(--card-title-text-color);
       height: 64px;
       background-color: var(--card-title-bg-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
     }
     .mdl-card__title-text {
       font-size: 20px;
       color: var(--card-title-text-color);
+      flex: 1;
+    }
+    .toggle-card-btn {
+      color: var(--card-title-text-color);
+      background-color: transparent;
+    }    .mdl-card__supporting-text {
+      max-height: 2000px; /* Large enough to contain all content */
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      padding: 16px;
+    }
+    .mdl-card__supporting-text.collapsed {
+      max-height: 0;
+      padding: 0 !important;
+      margin: 0;
+      border-top: none;
+    }
+    .mdl-card.collapsed-card {
+      margin-bottom: 8px;
     }
     .mdl-data-table {
       width: 100%;
@@ -835,8 +859,7 @@
     }    .timeframe-indicator-value {
       font-weight: bold;
       font-size: 14px;
-    }
-      /* Collapsible Filter Styles */
+    }    /* Collapsible Filter Styles */
     .filter-header {
       width: 100%;
       max-width: 1200px;
@@ -864,8 +887,7 @@
     #toggleFilterBtn {
       color: white;
     }
-    
-    .filter-container {
+      .filter-container {
       max-height: 1000px; /* Large enough to contain all content */
       overflow: hidden;
       transition: max-height 0.3s ease-out;
@@ -1088,10 +1110,12 @@
             <button id="quick-filter-button" class="mdl-button mdl-js-button mdl-button--icon" title="Quick Filter">
               <i class="material-icons">filter_list</i>
             </button>
-            
-            <ul class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="quick-filter-button">
+              <ul class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="quick-filter-button">
               <li class="mdl-menu__item" onclick="applyQuickFilter(5, 'minute')">Letzte 5 Minuten</li>
+              <li class="mdl-menu__item" onclick="applyQuickFilter(15, 'minute')">Letzte 15 Minuten</li>
+              <li class="mdl-menu__item" onclick="applyQuickFilter(30, 'minute')">Letzte 30 Minuten</li>
               <li class="mdl-menu__item" onclick="applyQuickFilter(60, 'minute')">Letzte 60 Minuten</li>
+              <li class="mdl-menu__item" onclick="applyQuickFilter(4, 'hour')">Letzte 4 Stunden</li>
               <li class="mdl-menu__item" onclick="applyQuickFilter(8, 'hour')">Letzte 8 Stunden</li>
               <li class="mdl-menu__item" onclick="applyQuickFilter(1, 'day')">Letzter Tag</li>
               <li class="mdl-menu__item" onclick="applyQuickFilter(7, 'day')">Letzte Woche</li>
@@ -1369,9 +1393,12 @@
           <!-- System-Gesundheit -->
           <div class="mdl-grid">
             <div class="mdl-cell mdl-cell--4-col">
-              <div class="mdl-card mdl-shadow--2dp">
+              <div id="healthCard" class="mdl-card mdl-shadow--2dp">
                 <div class="mdl-card__title">
                   <h2 class="mdl-card__title-text">System-Gesundheit</h2>
+                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('healthCard')" title="Ein-/ausklappen">
+                    <i class="material-icons">expand_less</i>
+                  </button>
                 </div>
                 <div class="mdl-card__supporting-text">
                   <div class="gauge-container">
@@ -1385,9 +1412,12 @@
               </div>
             </div>
             <div class="mdl-cell mdl-cell--4-col">
-              <div class="mdl-card mdl-shadow--2dp">
+              <div id="errorDistributionCard" class="mdl-card mdl-shadow--2dp">
                 <div class="mdl-card__title">
                   <h2 class="mdl-card__title-text">Fehler-Verteilung</h2>
+                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorDistributionCard')" title="Ein-/ausklappen">
+                    <i class="material-icons">expand_less</i>
+                  </button>
                 </div>
                 <div class="mdl-card__supporting-text">
                   <div class="small-chart-container">
@@ -1397,9 +1427,12 @@
               </div>
             </div>
             <div class="mdl-cell mdl-cell--4-col">
-              <div class="mdl-card mdl-shadow--2dp">
+              <div id="topErrorsCard" class="mdl-card mdl-shadow--2dp">
                 <div class="mdl-card__title">
                   <h2 class="mdl-card__title-text">Top Fehler</h2>
+                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('topErrorsCard')" title="Ein-/ausklappen">
+                    <i class="material-icons">expand_less</i>
+                  </button>
                 </div>
                 <div class="mdl-card__supporting-text">
                   <div id="topErrorsList">Lädt...</div>
@@ -1458,24 +1491,26 @@
                 <div class="kpi-value" id="errorTrendKPI">-</div>
               </div>
             </div>
-          </div>
-
-          <!-- Fehler nach Tageszeit -->
-          <div class="mdl-card mdl-shadow--2dp">
+          </div>          <!-- Fehler nach Tageszeit -->
+          <div id="errorsByHourCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehler nach Tageszeit</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorsByHourCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
                 <canvas id="errorsByHourChart"></canvas>
               </div>
             </div>
-          </div>
-
-          <!-- Fehler nach Wochentag (replaced with Fehlertypen nach Wochentagen) -->
-          <div class="mdl-card mdl-shadow--2dp">
+          </div>          <!-- Fehler nach Wochentag (replaced with Fehlertypen nach Wochentagen) -->
+          <div id="errorsByWeekdayCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehlertypen nach Wochentagen</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorsByWeekdayCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
@@ -1486,45 +1521,50 @@
         </div>
 
         <!-- Status Tab -->
-        <div id="status" class="tab-container">
-          <!-- Status-Diagramme - Aufgeteilt in drei separate Diagramme -->
-          <div class="mdl-card mdl-shadow--2dp">
+        <div id="status" class="tab-container">          <!-- Status-Diagramme - Aufgeteilt in drei separate Diagramme -->
+          <div id="inputChartCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Input-Verlauf</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('inputChartCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
                 <canvas id="inputChart"></canvas>
               </div>
             </div>
-          </div>
-
-          <div class="mdl-card mdl-shadow--2dp">
+          </div>          <div id="archiveChartCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Archiv-Verlauf</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('archiveChartCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
                 <canvas id="archiveChart"></canvas>
               </div>
             </div>
-          </div>
-
-          <div class="mdl-card mdl-shadow--2dp">
+          </div>          <div id="errorChartCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Error-Verlauf</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorChartCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
                 <canvas id="errorChart"></canvas>
               </div>
             </div>
-          </div>
-
-          <!-- Status-Log -->
-          <div class="mdl-card mdl-shadow--2dp">
+          </div>          <!-- Status-Log -->
+          <div id="statusLogCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Status-Log (AFM_status_log.csv)</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('statusLogCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div id="statusTable" class="loading">
@@ -1535,11 +1575,13 @@
         </div>
 
         <!-- Analyse Tab -->
-        <div id="analysis" class="tab-container">
-          <!-- Fehler-Trend nach Typ -->
-          <div class="mdl-card mdl-shadow--2dp">
+        <div id="analysis" class="tab-container">          <!-- Fehler-Trend nach Typ -->
+          <div id="errorTrendCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehler-Trend nach Typ</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorTrendCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
@@ -1547,11 +1589,13 @@
               </div>
             </div>
           </div>
-          
-          <!-- Fehler-Verteilung nach Wochentagen -->
-          <div class="mdl-card mdl-shadow--2dp">
+            <!-- Fehler-Verteilung nach Wochentagen -->
+          <div id="errorHeatmapCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehlertypen nach Wochentagen</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorHeatmapCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
@@ -1561,11 +1605,13 @@
           </div>
           
           <!-- Verarbeitungseffizienz -->
-          <div class="mdl-grid">
-            <div class="mdl-cell mdl-cell--6-col">
-              <div class="mdl-card mdl-shadow--2dp">
+          <div class="mdl-grid">            <div class="mdl-cell mdl-cell--6-col">
+              <div id="errorRateCard" class="mdl-card mdl-shadow--2dp">
                 <div class="mdl-card__title">
                   <h2 class="mdl-card__title-text">Fehlerrate-Verlauf</h2>
+                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorRateCard')" title="Ein-/ausklappen">
+                    <i class="material-icons">expand_less</i>
+                  </button>
                 </div>
                 <div class="mdl-card__supporting-text">
                   <div class="small-chart-container">
@@ -1573,11 +1619,13 @@
                   </div>
                 </div>
               </div>
-            </div>
-            <div class="mdl-cell mdl-cell--6-col">
-              <div class="mdl-card mdl-shadow--2dp">
+            </div>            <div class="mdl-cell mdl-cell--6-col">
+              <div id="throughputCard" class="mdl-card mdl-shadow--2dp">
                 <div class="mdl-card__title">
                   <h2 class="mdl-card__title-text">Durchsatz-Verlauf</h2>
+                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('throughputCard')" title="Ein-/ausklappen">
+                    <i class="material-icons">expand_less</i>
+                  </button>
                 </div>
                 <div class="mdl-card__supporting-text">
                   <div class="small-chart-container">
@@ -3638,12 +3686,14 @@
       } catch (error) {
         console.error("Fehler beim Erstellen des zweiten Fehlertypen-Wochentag-Diagramms:", error);
       }
-    }
-
-    // Quick Filter anwenden
+    }    // Quick Filter anwenden
     function applyQuickFilter(amount, unit) {
       // Aktuelle Zeit für das Enddatum
       const now = new Date();
+      
+      // Set seconds and milliseconds to zero for precise time periods
+      now.setSeconds(0, 0);
+      
       const endDate = new Date(now);
       
       // Startdatum berechnen
@@ -3675,8 +3725,22 @@
       updateDateDisplay('endDate');
       updateTimeDisplay('endTime');
       
-      // Filter anwenden
-      applyDateFilter();
+      // Set the filter variables directly for more precise control
+      startDateFilter = new Date(startDate);
+      endDateFilter = new Date(endDate);
+      // No need to add seconds to endDateFilter since we zeroed them out
+      
+      // Apply filters and process data
+      applyFilters();
+      processAllData();
+      
+      // Update the slider if it exists
+      if (window.dateSlider) {
+        window.dateSlider.set([startDateFilter.getTime(), endDateFilter.getTime()]);
+      }
+      
+      // Update the timeframe display
+      updateTimeframeDisplay();
       
       // Feedback für den Benutzer als Konsolen-Log
       console.log(`Filter angewendet: Letzte ${amount} ${getUnitText(amount, unit)}`);
@@ -3775,6 +3839,27 @@
           }
         });
       }
+      
+      // Initialize card collapse states from localStorage
+      const cardIds = ['healthCard', 'errorDistributionCard', 'topErrorsCard'];
+      cardIds.forEach(cardId => {
+        const card = document.getElementById(cardId);
+        if (card) {
+          const cardContent = card.querySelector('.mdl-card__supporting-text');
+          const toggleIcon = card.querySelector('.toggle-card-btn i');
+          
+          if (cardContent && toggleIcon) {
+            // Check for saved state
+            const isCollapsed = localStorage.getItem(`card_${cardId}_collapsed`) === 'true';
+            
+            // Apply saved state
+            if (isCollapsed) {
+              cardContent.classList.add('collapsed');
+              toggleIcon.textContent = 'expand_more';
+            }
+          }
+        }
+      });
       
       // Initialize the range slider after data is loaded (if not already initialized)
       if (allStatusData.length > 0) {
@@ -4039,6 +4124,11 @@
       endDateFilter = new Date(newEnd);
       endDateFilter.setSeconds(59, 999); // End of minute
       
+      // Update the slider if it exists
+      if (window.dateSlider) {
+        window.dateSlider.set([newStart.getTime(), newEnd.getTime()]);
+      }
+      
       applyFilters();
       processAllData();
       
@@ -4105,6 +4195,11 @@
       startDateFilter = newStart;
       endDateFilter = new Date(newEnd);
       endDateFilter.setSeconds(59, 999); // End of minute
+      
+      // Update the slider if it exists
+      if (window.dateSlider) {
+        window.dateSlider.set([newStart.getTime(), newEnd.getTime()]);
+      }
       
       applyFilters();
       processAllData();
@@ -4324,15 +4419,15 @@
         document.getElementById('sliderEndTimestamp').textContent = 
           'Ende: ' + formatSliderDate(timestamps[1]);
           
-        // Update duration tooltip by direct ID reference
+        // Calculate duration text once for both displays
+        const durationText = formatDuration(timestamps[0], timestamps[1]);
+        
+        // Update duration tooltip 
         const durationTooltip = document.getElementById('sliderDurationTooltip');
         if (durationTooltip) {
-          // Reuse the formatDuration function
-          const durationText = formatDuration(timestamps[0], timestamps[1]);
           durationTooltip.textContent = durationText;
           
-          // Also update position to center over the selected range
-          // This ensures it stays centered over the blue connecting bar
+          // Update position to center over the selected range
           const sliderRect = sliderElement.getBoundingClientRect();
           const lowerHandle = sliderElement.querySelector('.noUi-handle-lower');
           const upperHandle = sliderElement.querySelector('.noUi-handle-upper');
@@ -4344,6 +4439,12 @@
             
             durationTooltip.style.left = center + 'px';
           }
+        }
+        
+        // Update timeframeDisplay with the same text
+        const timeframeDisplay = document.getElementById('timeframeDisplay');
+        if (timeframeDisplay) {
+          timeframeDisplay.textContent = durationText;
         }
       });// Apply filter when slider changes end
       window.dateSlider.on('change', function(values) {
@@ -4397,14 +4498,13 @@
         document.getElementById('sliderEndTimestamp').textContent = 
           'Ende: ' + formatSliderDate(newEndDate);
       });
-      
-      // Add event listeners to the shift range buttons
+        // Add event listeners to the shift range buttons - use the same functions as the timeframe buttons
       document.getElementById('shiftRangeLeft').addEventListener('click', function() {
-        shiftDateRange(-1);
+        movePreviousPeriod();
       });
       
       document.getElementById('shiftRangeRight').addEventListener('click', function() {
-        shiftDateRange(1);
+        moveNextPeriod();
       });
     }
     
@@ -4463,9 +4563,7 @@
         // Move to next interval
         currentTime = new Date(currentTime.getTime() + interval);
       }
-    }
-
-    // Function to shift the entire date range by a percentage of its current span
+    }    // Function to shift the entire date range by a percentage of its current span
     function shiftDateRange(direction) {
       // Check if slider exists
       if (!window.dateSlider) return;
@@ -4491,17 +4589,69 @@
       const maxBound = sliderRange.max;
       
       // Check if new range is within bounds
+      let updatedStart, updatedEnd;
+      
       if (newStart < minBound) {
         // If shifting would exceed lower bound, snap to minimum
-        window.dateSlider.set([minBound, minBound + rangeDuration]);
+        updatedStart = minBound;
+        updatedEnd = minBound + rangeDuration;
+        window.dateSlider.set([updatedStart, updatedEnd]);
       } else if (newEnd > maxBound) {
         // If shifting would exceed upper bound, snap to maximum
-        window.dateSlider.set([maxBound - rangeDuration, maxBound]);
+        updatedStart = maxBound - rangeDuration;
+        updatedEnd = maxBound;
+        window.dateSlider.set([updatedStart, updatedEnd]);
       } else {
         // Otherwise shift normally
-        window.dateSlider.set([newStart, newEnd]);
+        updatedStart = newStart;
+        updatedEnd = newEnd;
+        window.dateSlider.set([updatedStart, updatedEnd]);
       }
-    }    // Global function to format duration consistently across the dashboard
+      
+      // Apply the filter with the new date range
+      updateDateFiltersFromSlider(updatedStart, updatedEnd);
+      
+      // Apply filters and update the charts
+      applyFilters();
+      processAllData();
+      updateTimeframeDisplay();
+    }
+    
+    // Helper function to update date filter inputs based on slider values
+    function updateDateFiltersFromSlider(startTimestamp, endTimestamp) {
+      // Create Date objects from timestamps
+      const startDate = new Date(startTimestamp);
+      const endDate = new Date(endTimestamp);
+      
+      // Format for input fields
+      const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const formatTime = (date) => {
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      };
+      
+      // Update input fields
+      document.getElementById('startDate').value = formatDate(startDate);
+      document.getElementById('startTime').value = formatTime(startDate);
+      document.getElementById('endDate').value = formatDate(endDate);
+      document.getElementById('endTime').value = formatTime(endDate);
+      
+      // Update displays
+      updateDateDisplay('startDate');
+      updateTimeDisplay('startTime');
+      updateDateDisplay('endDate');
+      updateTimeDisplay('endTime');
+      
+      // Update filter variables directly
+      startDateFilter = new Date(startDate);
+      endDateFilter = new Date(endDate);
+      endDateFilter.setSeconds(59, 999); // Set to end of minute
+    }// Global function to format duration consistently across the dashboard
     function formatDuration(startTime, endTime) {
       // Calculate time difference in milliseconds
       const timeDiff = endTime - startTime;
@@ -4527,8 +4677,7 @@
       
       return durationText;
     }
-    
-    // Toggle filter visibility
+      // Toggle filter visibility
     function toggleFilter() {
       const filterContent = document.getElementById('filterContent');
       const filterHeader = document.querySelector('.filter-header');
@@ -4551,6 +4700,50 @@
         
         // Store preference in localStorage
         localStorage.setItem('filterCollapsed', 'true');
+      }
+    }
+      // Toggle card content visibility
+    function toggleCard(cardId) {
+      const card = document.getElementById(cardId);
+      const cardContent = card.querySelector('.mdl-card__supporting-text');
+      const toggleIcon = card.querySelector('.toggle-card-btn i');
+      
+      if (!cardContent || !toggleIcon) return;
+      
+      // Toggle collapsed state
+      if (cardContent.classList.contains('collapsed')) {
+        // Expand
+        cardContent.classList.remove('collapsed');
+        card.classList.remove('collapsed-card');
+        toggleIcon.textContent = 'expand_less';
+        
+        // Restore original height after a small delay to allow animation
+        setTimeout(() => {
+          cardContent.style.height = '';
+          cardContent.style.overflow = '';
+        }, 10);
+        
+        // Store preference in localStorage
+        localStorage.setItem(`card_${cardId}_collapsed`, 'false');
+      } else {
+        // Set explicit height before collapsing for smooth animation
+        const originalHeight = cardContent.scrollHeight;
+        cardContent.style.height = originalHeight + 'px';
+        cardContent.style.overflow = 'hidden';
+        
+        // Force reflow
+        cardContent.offsetHeight;
+        
+        // Collapse
+        requestAnimationFrame(() => {
+          cardContent.classList.add('collapsed');
+          card.classList.add('collapsed-card');
+          cardContent.style.height = '0px';
+          toggleIcon.textContent = 'expand_more';
+          
+          // Store preference in localStorage
+          localStorage.setItem(`card_${cardId}_collapsed`, 'true');
+        });
       }
     }
   </script>
