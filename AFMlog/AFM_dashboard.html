@@ -1610,6 +1610,9 @@
       
       // Update the timeframe indicator display
       updateTimeframeDisplay();
+      
+      // Update chart titles with new timeframe
+      updateChartTitles();
     }
 
     // Datum-Filter zurücksetzen
@@ -1703,9 +1706,7 @@
         applyFilters();
         processAllData();
       });
-    }
-
-    function processAllData() {
+    }    function processAllData() {
       processStatusData({ data: filteredStatusData });
       processErrorData({ data: filteredErrorData });
       processPatternData({ data: filteredPatternData });
@@ -1720,7 +1721,6 @@
       createErrorTypePieChart();
       updateTopErrorsList();
       updateSystemHealthGauge();
-      createErrorsByWeekdayChart();
       createErrorsByWeekdayStackedChart(); 
       
       // Create duplicate chart for overview tab
@@ -1774,10 +1774,8 @@
         
         // Fehlerrate berechnen
         calculateErrorRate();
-      }
-
-      // Group data by hour for better visualization
-      const inputByHour = {};
+      }      // Group data by 5-minute intervals for finer visualization
+      const inputBy5Min = {};
       const errorByHour = {};
       const archiveByHour = {};
       
@@ -1787,8 +1785,29 @@
       results.data.forEach(entry => {
         if (!entry.Zeitpunkt) return;
         
-        // Extract date and round to hour
+        // Extract date and round to 5-minute interval
         const timestamp = new Date(entry.Zeitpunkt);
+        const minutes = timestamp.getMinutes();
+        // Round to nearest 5-minute interval (0, 5, 10, 15, 20, ...)
+        const roundedMinutes = Math.floor(minutes / 5) * 5;
+          const min5Key = new Date(
+          timestamp.getFullYear(),
+          timestamp.getMonth(),
+          timestamp.getDate(),
+          timestamp.getHours(),
+          roundedMinutes
+        ).toISOString();
+        
+        // Store input values by 5-minute buckets
+        if (!inputBy5Min[min5Key]) {
+          inputBy5Min[min5Key] = { sum: 0, count: 0 };
+        }
+        
+        // Sum input values for this 5-minute interval
+        inputBy5Min[min5Key].sum += parseInt(entry['Input'] || 0);
+        inputBy5Min[min5Key].count++;
+        
+        // Keep hourly buckets for error and archive charts
         const hourKey = new Date(
           timestamp.getFullYear(),
           timestamp.getMonth(),
@@ -1796,52 +1815,58 @@
           timestamp.getHours()
         ).toISOString();
         
-        // Store values by hourly buckets
-        if (!inputByHour[hourKey]) {
-          inputByHour[hourKey] = { sum: 0, count: 0 };
+        // Store values for hourly buckets for error and archive
+        if (!errorByHour[hourKey]) {
           errorByHour[hourKey] = { sum: 0, count: 0 };
           archiveByHour[hourKey] = { sum: 0, count: 0 };
         }
         
-        // Sum values for this hour
-        inputByHour[hourKey].sum += parseInt(entry['Input'] || 0);
-        inputByHour[hourKey].count++;
+        // Sum values for error and archive hourly data
         errorByHour[hourKey].sum += parseInt(entry['Error'] || 0);
         errorByHour[hourKey].count++;
         archiveByHour[hourKey].sum += parseInt(entry['Archiv'] || 0);
         archiveByHour[hourKey].count++;
-      });
-      
-      // Create labels and data arrays for the charts
-      const labels = [];
+      });      // Create labels and data arrays for the charts
+      const inputLabels = [];
       const inputData = [];
+      const errorLabels = [];
       const errorData = [];
+      const archiveLabels = [];
       const archiveData = [];
       
-      // Format and prepare the data
-      Object.entries(inputByHour)
+      // Format and prepare the input data with 5-minute intervals
+      Object.entries(inputBy5Min)
+        .sort(([a], [b]) => a.localeCompare(b)) // Sort by timestamp
+        .forEach(([min5Key, values]) => {
+          const date = new Date(min5Key);
+          const formattedTime = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+          inputLabels.push(formattedTime);
+          
+          // Calculate average values for each 5-minute interval
+          inputData.push(Math.round(values.sum / values.count));
+        });
+      
+      // Keep hourly intervals for error and archive data
+      Object.entries(errorByHour)
         .sort(([a], [b]) => a.localeCompare(b)) // Sort by timestamp
         .forEach(([hourKey, values]) => {
           const date = new Date(hourKey);
           const formattedHour = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')} ${date.getHours()}:00`;
-          labels.push(formattedHour);
+          errorLabels.push(formattedHour);
+          archiveLabels.push(formattedHour);
           
           // Calculate average values for each hour
-          inputData.push(Math.round(inputByHour[hourKey].sum / inputByHour[hourKey].count));
           errorData.push(Math.round(errorByHour[hourKey].sum / errorByHour[hourKey].count));
           archiveData.push(Math.round(archiveByHour[hourKey].sum / archiveByHour[hourKey].count));
-        });
-
-      // Create Input Chart with improved styling
+        });      // Create Input Chart with improved styling for 15-minute intervals
       const ctxInput = document.getElementById('inputChart').getContext('2d');
       if (window.inputChart instanceof Chart) {
         window.inputChart.destroy();
       }
-      
-      window.inputChart = new Chart(ctxInput, {
+        window.inputChart = new Chart(ctxInput, {
         type: 'line',
         data: {
-          labels: labels,
+          labels: inputLabels,
           datasets: [{
             label: 'Input',
             data: inputData,
@@ -1850,8 +1875,11 @@
             borderWidth: 2,
             tension: 0.3,
             fill: true,
-            pointRadius: 3,
-            pointHoverRadius: 5
+            pointRadius: 3, // Always show points (like other charts)
+            pointHoverRadius: 5,
+            pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 1
           }]
         },
         options: {
@@ -1868,11 +1896,13 @@
             x: {
               title: {
                 display: true,
-                text: 'Zeitraum (Stunde)'
+                text: 'Zeitraum (5-Minuten Intervalle)'
               },
               ticks: {
                 maxRotation: 45,
-                minRotation: 45
+                minRotation: 45,
+                autoSkip: true,
+                maxTicksLimit: 20 // Limit the number of ticks to prevent overcrowding
               }
             }
           },
@@ -1886,12 +1916,17 @@
                   return `Input: ${context.raw} Dateien`;
                 }
               }
+            },
+            title: {
+              display: true,
+              text: 'Input-Verlauf (5-Minuten Intervalle)',
+              font: {
+                size: 16
+              }
             }
           }
         }
-      });
-
-      // Create Error Chart with improved styling
+      });// Create Error Chart with improved styling
       const ctxError = document.getElementById('errorChart').getContext('2d');
       if (window.errorChart instanceof Chart) {
         window.errorChart.destroy();
@@ -1900,7 +1935,7 @@
       window.errorChart = new Chart(ctxError, {
         type: 'line',
         data: {
-          labels: labels,
+          labels: errorLabels,
           datasets: [{
             label: 'Fehler',
             data: errorData,
@@ -1948,9 +1983,7 @@
             }
           }
         }
-      });
-
-      // Create Archive Chart with improved styling
+      });      // Create Archive Chart with improved styling
       const ctxArchive = document.getElementById('archiveChart').getContext('2d');
       if (window.archiveChart instanceof Chart) {
         window.archiveChart.destroy();
@@ -1959,7 +1992,7 @@
       window.archiveChart = new Chart(ctxArchive, {
         type: 'line',
         data: {
-          labels: labels,
+          labels: archiveLabels,
           datasets: [{
             label: 'Archiv',
             data: archiveData,
@@ -2280,8 +2313,7 @@
         'rgba(153, 102, 255, 1)',
         'rgba(255, 159, 64, 1)'
       ];
-      
-      // Create datasets
+        // Create datasets
       const datasets = [];
       
       // Create a dataset for each error type
@@ -2296,8 +2328,11 @@
           backgroundColor: colors[index % colors.length].replace('1)', '0.2)'),
           tension: 0.3,
           fill: true,
-          pointRadius: 0,
-          pointHoverRadius: 3
+          pointRadius: 3, // Add visible data points
+          pointBackgroundColor: colors[index % colors.length],
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1,
+          pointHoverRadius: 5
         });
       });
       
@@ -2704,90 +2739,8 @@
           }
         }
       });
-    }
-
-    // Fehler nach Wochentag erstellen
-    function createErrorsByWeekdayChart() {
-      if (filteredErrorData.length === 0) {
-        console.log("Keine Fehlerdaten für Wochentag-Chart verfügbar");
-        return;
-      }
-      
-      // Fehler nach Wochentag gruppieren
-      const errorsByWeekday = Array(7).fill(0);
-      
-      filteredErrorData.forEach(entry => {
-        if (entry.Zeitpunkt) {
-          try {
-            const [datePart] = entry.Zeitpunkt.split(' ');
-            const [year, month, day] = datePart.split('-').map(num => parseInt(num));
-            const date = new Date(year, month-1, day);
-            const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-            if (weekday >= 0 && weekday < 7) {
-              errorsByWeekday[weekday]++;
-            } else {
-              console.warn("Ungültiger Wochentag:", weekday, "für Datum:", entry.Zeitpunkt);
-            }
-          } catch (e) {
-            console.error("Fehler bei der Verarbeitung des Datums:", entry.Zeitpunkt, e);
-          }
-        }
-      });
-      
-      console.log("Fehler nach Wochentag:", errorsByWeekday);
-      
-      // Wochentagsnamen
-      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-      
-      const ctx = document.getElementById('errorsByWeekdayChart');
-      
-      if (!ctx) {
-        console.error("Canvas-Element 'errorsByWeekdayChart' nicht gefunden!");
-        return;
-      }
-      
-      // Chart erstellen
-      try {
-        if (window.errorsByWeekdayChart instanceof Chart) {
-          window.errorsByWeekdayChart.destroy();
-        }
-        
-        window.errorsByWeekdayChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: weekdays,
-            datasets: [{
-              label: 'Fehler pro Wochentag',
-              data: errorsByWeekday,
-              backgroundColor: 'rgba(153, 102, 255, 0.2)',
-              borderColor: 'rgba(153, 102, 255, 1)',
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: {
-                beginAtZero: true,
-                title: {
-                  display: true,
-                  text: 'Anzahl der Fehler'
-                }
-              },
-              x: {
-                title: {
-                  display: true,
-                  text: 'Wochentag'
-                }
-              }
-            }
-          }
-        });
-      } catch (error) {
-        console.error("Fehler beim Erstellen des Fehler-nach-Wochentag-Diagramms:", error);
-      }
-    }
+    }    // This function has been removed since it was unused
+    // The functionality is now covered by createErrorsByWeekdayStackedChart and createErrorsByWeekdayStackedChart2
 
     // Fehlertypen nach Wochentag als gestapeltes Balkendiagramm
     function createErrorsByWeekdayStackedChart() {
@@ -2809,7 +2762,7 @@
         if (!errorsByType[pattern]) {
           errorsByType[pattern] = {
             total: 0,
-            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // So, Mo, Di, Mi, Do, Fr, Sa
+            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // Mo, Di, Mi, Do, Fr, Sa, So (starting with Monday)
           };
         }
         
@@ -2822,7 +2775,9 @@
           const [year, month, day] = datePart.split('-').map(num => parseInt(num));
           const date = new Date(year, month - 1, day);
           const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-          errorsByType[pattern].byWeekday[weekday]++;
+          // Remap weekday index: 0 (Sunday) becomes 6, 1-6 (Mon-Sat) becomes 0-5
+          const remappedWeekday = weekday === 0 ? 6 : weekday - 1;
+          errorsByType[pattern].byWeekday[remappedWeekday]++;
         }
       });
       
@@ -2838,7 +2793,7 @@
       
       // Transformiere die Daten für das gestapelte Balkendiagramm
       // (7 Wochentage x bis zu 10 Fehlertypen)
-      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+      const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
       const datasets = [];
       
       // Kräftigere Farben für die Fehlertypen
@@ -3272,7 +3227,7 @@
         if (!errorsByType[pattern]) {
           errorsByType[pattern] = {
             total: 0,
-            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // So, Mo, Di, Mi, Do, Fr, Sa
+            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // Mo, Di, Mi, Do, Fr, Sa, So (starting with Monday)
           };
         }
         
@@ -3285,7 +3240,9 @@
           const [year, month, day] = datePart.split('-').map(num => parseInt(num));
           const date = new Date(year, month - 1, day);
           const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-          errorsByType[pattern].byWeekday[weekday]++;
+          // Remap weekday index: 0 (Sunday) becomes 6, 1-6 (Mon-Sat) becomes 0-5
+          const remappedWeekday = weekday === 0 ? 6 : weekday - 1;
+          errorsByType[pattern].byWeekday[remappedWeekday]++;
         }
       });
       
@@ -3297,7 +3254,7 @@
       const topErrors = sortedErrors.slice(0, 10);
       
       // Wochentagsnamen
-      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+      const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
       const datasets = [];
       
       // Kräftige Farben für die Fehlertypen
@@ -3760,9 +3717,11 @@
       
       // Update the timeframe display
       updateTimeframeDisplay();
+      
+      // Update chart titles with new timeframe
+      updateChartTitles();
     }
-    
-    function moveNextPeriod() {
+      function moveNextPeriod() {
       // Get the current date and time values
       const startDate = document.getElementById('startDate').value;
       const startTime = document.getElementById('startTime').value || "00:00";
@@ -3827,6 +3786,9 @@
       
       // Update the timeframe display
       updateTimeframeDisplay();
+      
+      // Update chart titles with new timeframe
+      updateChartTitles();
     }
 
     // Improved function to dynamically determine the appropriate aggregation interval
@@ -3885,6 +3847,69 @@
             return new Date(date.setDate(diff));
           }
         };
+      }
+    }
+
+    // Update chart titles to reflect current timeframe
+    function updateChartTitles() {
+      const timeframeText = document.getElementById('timeframeDisplay').textContent;
+      
+      // Update errorTrendChart title
+      if (window.errorTrendChart instanceof Chart) {
+        window.errorTrendChart.options.plugins.title.text = `Fehlertypen-Verlauf (${timeframeText})`;
+        window.errorTrendChart.update();
+      }
+      
+      // Update errorRateChart title
+      if (window.errorRateChart instanceof Chart) {
+        window.errorRateChart.options.plugins.title.text = `Fehlerrate-Verlauf (${timeframeText})`;
+        window.errorRateChart.update();
+      }
+      
+      // Update throughputChart title
+      if (window.throughputChart instanceof Chart) {
+        window.throughputChart.options.plugins.title.text = `Durchsatz-Verlauf (${timeframeText})`;
+        window.throughputChart.update();
+      }
+      
+      // Update X-axis labels too
+      updateChartXAxisLabels();
+    }
+    
+    // Update X-axis labels to match timeframe
+    function updateChartXAxisLabels() {
+      const timeframeText = document.getElementById('timeframeDisplay').textContent;
+      
+      // Get the current timeframe dates
+      const startDate = new Date(document.getElementById('startDate').value + 'T' + (document.getElementById('startTime').value || '00:00'));
+      const endDate = new Date(document.getElementById('endDate').value + 'T' + (document.getElementById('endTime').value || '00:00'));
+      
+      // Determine appropriate axis labels based on the aggregation interval
+      const aggregation = getAggregationInterval(startDate, endDate);
+      let xAxisLabel = '';
+      switch(aggregation.interval) {
+        case 'hour': xAxisLabel = 'Stunde'; break;
+        case 'day': xAxisLabel = 'Tag'; break;
+        case 'week': xAxisLabel = 'Woche'; break;
+        default: xAxisLabel = 'Zeitraum';
+      }
+      
+      // Update errorTrendChart X-axis title
+      if (window.errorTrendChart instanceof Chart) {
+        window.errorTrendChart.options.scales.x.title.text = `${xAxisLabel} (${timeframeText})`;
+        window.errorTrendChart.update();
+      }
+      
+      // Update errorRateChart X-axis title
+      if (window.errorRateChart instanceof Chart) {
+        window.errorRateChart.options.scales.x.title.text = `${xAxisLabel} (${timeframeText})`;
+        window.errorRateChart.update();
+      }
+      
+      // Update throughputChart X-axis title
+      if (window.throughputChart instanceof Chart) {
+        window.throughputChart.options.scales.x.title.text = `${xAxisLabel} (${timeframeText})`;
+        window.throughputChart.update();
       }
     }
   </script>
