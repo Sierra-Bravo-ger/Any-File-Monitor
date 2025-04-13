@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="de">
+<!-- Modular version of AFM Dashboard -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <title>AnyFileMonitor Dashboard</title>
+  
+  <!-- PWA Support -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3f51b5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AFM Dashboard">
+  <link rel="apple-touch-icon" href="images/icon-152x152.png">
+
+  <!-- Material Design Lite -->
+  <link rel="stylesheet" href="libs/fonts/material-icons.css">
+  <link rel="stylesheet" href="libs/css/material.indigo-pink.min.css">
+  <script defer src="libs/js/material.min.js"></script>
+  <!-- PapaParse für CSV-Parsing -->
+  <script src="libs/js/papaparse.min.js"></script>
+  <!-- Chart.js für Diagramme -->
+  <script src="libs/js/chart.js"></script>
+  <script src="libs/js/chartjs-chart-matrix.min.js"></script>
+  <script src="libs/js/chartjs-plugin-datalabels.js"></script>
+  <!-- Moment.js für Datumsfunktionen -->
+  <script src="libs/js/moment.min.js"></script>
+  <script src="libs/js/moment-de.js"></script>
+  <!-- noUiSlider für den Zeitraum-Slider -->
+  <link rel="stylesheet" href="libs/css/nouislider.min.css">
+  <script src="libs/js/nouislider.min.js"></script>
+  
+  <!-- Modular CSS -->
+  <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+  <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+    <!-- Header Component (will be loaded via JavaScript) -->
+    <div id="header-container"></div>
+
+    <main class="mdl-layout__content">
+      <div class="page-content">
+        <div id="lastUpdate"></div>
+        
+        <!-- Filter für Zeitraum -->
+        <div id="sidebar-container" class="filter-header mdl-shadow--2dp">
+          <!-- Sidebar will be loaded here -->
+        </div>
+        
+        <div class="filter-container mdl-shadow--2dp" id="filterContent" style="padding: 16px; background-color: var(--card-bg-color); display: flex; justify-content: center; align-items: flex-start;">
+          <!-- Date filter content will be loaded here -->
+        </div>
+
+        <!-- Übersicht Tab -->
+        <div id="overview" class="tab-container active">
+          <!-- Zusammenfassung -->
+          <div class="mdl-grid summary-card mdl-shadow--2dp">
+            <div class="summary-item">
+              <div class="summary-value" id="totalFiles">-</div>
+              <div class="summary-label">Dateien verarbeitet</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="totalErrors">-</div>
+              <div class="summary-label">Fehler gesamt</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="errorRate">-</div>
+              <div class="summary-label">Fehlerrate</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="avgThroughput">-</div>
+              <div class="summary-label">Durchsatz/Stunde</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="patternMatches">-</div>
+              <div class="summary-label">Muster erkannt</div>
+            </div>
+          </div>
+
+          <div class="mdl-grid">
+            <div class="mdl-cell mdl-cell--4-col">
+              <div id="healthCard" class="mdl-card mdl-shadow--2dp">
+                <!-- Widget A will be loaded here -->
+              </div>
+            </div>
+            <div class="mdl-cell mdl-cell--8-col">
+              <div id="topErrorsCard" class="mdl-card mdl-shadow--2dp">
+                <div class="mdl-card__title">
+                  <h2 class="mdl-card__title-text">Top Fehler</h2>
+                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('topErrorsCard')" title="Ein-/ausklappen">
+                    <i class="material-icons">expand_less</i>
+                  </button>
+                </div>
+                <div class="mdl-card__supporting-text">
+                  <div id="topErrorsList"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="errorsByHourCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehler nach Tageszeit</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorsByHourCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorsByHourChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status Tab -->
+        <div id="status" class="tab-container">
+          <!-- Status-Diagramme - Aufgeteilt in drei separate Diagramme -->
+          <div id="inputChartCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Eingangsstatistik</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('inputChartCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="inputChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="throughputChartCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Durchsatz</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('throughputChartCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="throughputChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="errorRateChartCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehlerrate</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorRateChartCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorRateChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="analysis" class="tab-container">
+          <!-- Fehler-Trend nach Typ -->
+          <div id="errorTrendCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehler-Trend nach Typ</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorTrendCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorTrendChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="errorsByWeekdayCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehler nach Wochentag</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorsByWeekdayCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorsByWeekdayChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="errorTypeCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehlertypen</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorTypeCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorTypePieChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="errorTableCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehlertabelle</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorTableCard')" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="search-container">
+                <input type="text" id="errorSearch" class="search-input" placeholder="Suchen...">
+                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button" onclick="searchErrors()">Suchen</button>
+              </div>
+              <div id="errorTable"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Refresh Button -->
+  <div id="footer-container"></div>
+
+  <!-- Load modular components -->
+  <script type="module" src="scripts/dashboard.js"></script>
+</body>
+</html>

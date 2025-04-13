@@ -1,0 +1,48 @@
+/* Pagination styles for the AFM Dashboard */
+.pagination {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.pagination-button {
+  color: var(--text-color, #333) !important;
+  border: 1px solid var(--border-color, #ddd);
+  margin: 0 2px;
+  min-width: 36px;
+}
+
+.pagination-button.mdl-button--accent {
+  background-color: var(--accent-color, #ff9800) !important;
+  color: white !important;
+}
+
+.pagination-button:hover {
+  background-color: var(--hover-color, rgba(0, 0, 0, 0.05)) !important;
+}
+
+.pagination-button:disabled {
+  color: var(--secondary-text-color, #757575) !important;
+  cursor: not-allowed;
+}
+
+.pagination-button .material-icons {
+  color: var(--text-color, #333);
+}
+
+.pagination-button:disabled .material-icons {
+  color: var(--secondary-text-color, #757575);
+}
+
+/* Dark mode specific styles */
+[data-theme="dark"] .pagination-button {
+  color: var(--text-color, #e0e0e0) !important;
+  border-color: var(--border-color, #444);
+}
+
+[data-theme="dark"] .pagination-button .material-icons {
+  color: var(--text-color, #e0e0e0);
+}
+
+[data-theme="dark"] .pagination-button:disabled .material-icons {
+  color: var(--secondary-text-color, #aaaaaa);
+}

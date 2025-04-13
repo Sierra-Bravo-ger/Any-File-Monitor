@@ -1,0 +1,34 @@
+/* Pattern badge styles for the AFM Dashboard */
+.pattern-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--card-title-text-color, white);
+  background-color: var(--accent-color, #ff9800);
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.pattern-container {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Different colors for different pattern types */
+.pattern-badge.error {
+  background-color: var(--error-color, #f44336);
+}
+
+.pattern-badge.warning {
+  background-color: var(--warning-color, #ff9800);
+}
+
+.pattern-badge.info {
+  background-color: var(--info-color, #2196f3);
+}
+
+.pattern-badge.success {
+  background-color: var(--success-color, #4caf50);
+}
