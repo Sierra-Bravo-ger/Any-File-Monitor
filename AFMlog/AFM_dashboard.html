@@ -3035,8 +3035,7 @@
         console.log("Keine Fehlerdaten für Wochentag-Chart verfügbar");
         return;
       }
-      
-      // Fehler nach Wochentag gruppieren
+        // Fehler nach Wochentag gruppieren
       const errorsByWeekday = Array(7).fill(0);
       
       filteredErrorData.forEach(entry => {
@@ -3046,10 +3045,12 @@
             const [year, month, day] = datePart.split('-').map(num => parseInt(num));
             const date = new Date(year, month-1, day);
             const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-            if (weekday >= 0 && weekday < 7) {
-              errorsByWeekday[weekday]++;
+            // Konvertieren von Sonntag=0, Montag=1, ... zu Montag=0, Dienstag=1, ... Sonntag=6
+            const mondayStartWeekday = weekday === 0 ? 6 : weekday - 1;
+            if (mondayStartWeekday >= 0 && mondayStartWeekday < 7) {
+              errorsByWeekday[mondayStartWeekday]++;
             } else {
-              console.warn("Ungültiger Wochentag:", weekday, "für Datum:", entry.Zeitpunkt);
+              console.warn("Ungültiger Wochentag:", mondayStartWeekday, "für Datum:", entry.Zeitpunkt);
             }
           } catch (e) {
             console.error("Fehler bei der Verarbeitung des Datums:", entry.Zeitpunkt, e);
@@ -3059,8 +3060,8 @@
       
       console.log("Fehler nach Wochentag:", errorsByWeekday);
       
-      // Wochentagsnamen
-      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+      // Wochentagsnamen, startend mit Montag
+      const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
       
       const ctx = document.getElementById('errorsByWeekdayChart');
       
@@ -3110,9 +3111,7 @@
       } catch (error) {
         console.error("Fehler beim Erstellen des Fehler-nach-Wochentag-Diagramms:", error);
       }
-    }
-
-    // Fehlertypen nach Wochentag als gestapeltes Balkendiagramm
+    }    // Fehlertypen nach Wochentag als gestapeltes Balkendiagramm
     function createErrorsByWeekdayStackedChart() {
       // Genau dieselbe Logik wie bei updateTopErrorsList() verwenden
       if (filteredPatternData.length === 0) return;
@@ -3132,7 +3131,7 @@
         if (!errorsByType[pattern]) {
           errorsByType[pattern] = {
             total: 0,
-            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // So, Mo, Di, Mi, Do, Fr, Sa
+            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // Mo, Di, Mi, Do, Fr, Sa, So
           };
         }
         
@@ -3145,7 +3144,9 @@
           const [year, month, day] = datePart.split('-').map(num => parseInt(num));
           const date = new Date(year, month - 1, day);
           const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-          errorsByType[pattern].byWeekday[weekday]++;
+          // Konvertieren von Sonntag=0, Montag=1, ... zu Montag=0, Dienstag=1, ... Sonntag=6
+          const mondayStartWeekday = weekday === 0 ? 6 : weekday - 1;
+          errorsByType[pattern].byWeekday[mondayStartWeekday]++;
         }
       });
       
@@ -3158,10 +3159,9 @@
       // Bis zu 10 häufigste Fehler für das Diagramm verwenden
       const topErrors = sortedErrors.slice(0, 10);
       const labels = topErrors.map(err => err[0]); // Fehlermuster
-      
-      // Transformiere die Daten für das gestapelte Balkendiagramm
+        // Transformiere die Daten für das gestapelte Balkendiagramm
       // (7 Wochentage x bis zu 10 Fehlertypen)
-      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+      const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
       const datasets = [];
       
       // Kräftigere Farben für die Fehlertypen
@@ -3589,13 +3589,12 @@
       }
       
       // Fehler nach Muster gruppieren und zählen
-      const errorsByType = {};
-      filteredPatternData.forEach(entry => {
+      const errorsByType = {};      filteredPatternData.forEach(entry => {
         const pattern = entry.Muster;
         if (!errorsByType[pattern]) {
           errorsByType[pattern] = {
             total: 0,
-            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // So, Mo, Di, Mi, Do, Fr, Sa
+            byWeekday: [0, 0, 0, 0, 0, 0, 0]  // Mo, Di, Mi, Do, Fr, Sa, So
           };
         }
         
@@ -3608,7 +3607,9 @@
           const [year, month, day] = datePart.split('-').map(num => parseInt(num));
           const date = new Date(year, month - 1, day);
           const weekday = date.getDay(); // 0 = Sonntag, 1 = Montag, ...
-          errorsByType[pattern].byWeekday[weekday]++;
+          // Konvertieren von Sonntag=0, Montag=1, ... zu Montag=0, Dienstag=1, ... Sonntag=6
+          const mondayStartWeekday = weekday === 0 ? 6 : weekday - 1;
+          errorsByType[pattern].byWeekday[mondayStartWeekday]++;
         }
       });
       
@@ -3618,9 +3619,8 @@
       
       // Top 10 häufigste Fehler verwenden
       const topErrors = sortedErrors.slice(0, 10);
-      
-      // Wochentagsnamen
-      const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+        // Wochentagsnamen, startend mit Montag
+      const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
       const datasets = [];
       
       // Kräftige Farben für die Fehlertypen
@@ -4399,8 +4399,7 @@
         behaviour: 'drag',
         // Enable dragging individual handles too
         dragAll: true
-      });
-        // Add custom duration tooltip to the slider container
+      });      // Add custom duration tooltip to the slider container
       // Note: we'll add it to the container instead of the connecting bar which might not be accessible
       const durationTooltip = document.createElement('div');
       durationTooltip.id = 'sliderDurationTooltip';
@@ -4417,11 +4416,15 @@
       durationTooltip.style.whiteSpace = 'nowrap';
       durationTooltip.style.zIndex = '5';
       durationTooltip.style.display = 'block';
+      durationTooltip.style.cursor = 'grab'; // Show cursor as grab to indicate it's draggable
       sliderElement.style.position = 'relative'; // Ensure tooltip is positioned relative to slider
-      sliderElement.appendChild(durationTooltip);      // Use the same global formatting function that will be used in both places
+      sliderElement.appendChild(durationTooltip);// Use the same global formatting function that will be used in both places
       
       // Set initial tooltip text
       durationTooltip.textContent = formatDuration(startTime.getTime(), endTime.getTime());
+      
+      // Make duration tooltip draggable to move both handles together
+      makeTooltipDraggable(durationTooltip, sliderElement);
       
       // Update timestamp displays
       document.getElementById('sliderStartTimestamp').textContent = 
@@ -4430,7 +4433,145 @@
         'Ende: ' + formatSliderDate(endTime);
       
       // Generate markers for significant time points
-      createTimeMarkers(minDate, maxDate);      // Handle slider changes
+      createTimeMarkers(minDate, maxDate);      // Function to make the duration tooltip draggable to move both handles
+      function makeTooltipDraggable(tooltip, sliderElement) {
+        // Find the noUi-connect element (the draggable bar between handles)
+        const connectBar = sliderElement.querySelector('.noUi-connect');
+        if (!connectBar) return;
+        
+        // Set the initial grab cursor to indicate draggability
+        tooltip.style.cursor = 'grab';
+        
+        // Helper to get mouse position relative to the slider
+        function getRelativeMousePosition(e, slider) {
+          const rect = slider.getBoundingClientRect();
+          const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+          return {
+            x: clientX - rect.left,
+            y: 0
+          };
+        }        // Mobile touch support - handle touch events first
+        tooltip.addEventListener('touchstart', function(e) {
+          if (!e.touches || !e.touches[0]) return;
+          e.preventDefault();
+          
+          // Change cursor and add shadow effect for dragging appearance
+          tooltip.style.cursor = 'grabbing';
+          tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
+          
+          // Get the touch coordinates
+          const touch = e.touches[0];
+          
+          // Instead of creating synthetic events, directly trigger noUiSlider's API
+          // First, get current slider values
+          const values = window.dateSlider.get().map(Number);
+          const startTime = values[0];
+          const endTime = values[1];
+          const duration = endTime - startTime;
+          
+          // Save starting touch position for calculating drag distance
+          const startTouchX = touch.clientX;
+          const sliderRect = sliderElement.getBoundingClientRect();
+          const sliderRange = window.dateSlider.options.range;
+          const timeRange = sliderRange.max - sliderRange.min;
+          
+          // Setup touch move handler
+          function onTouchMove(moveEvent) {
+            if (!moveEvent.touches[0]) return;
+            moveEvent.preventDefault();
+            
+            // Calculate horizontal distance moved
+            const currentX = moveEvent.touches[0].clientX;
+            const deltaX = currentX - startTouchX;
+            
+            // Convert pixel movement to time value movement
+            const pixelRatio = sliderRect.width / timeRange;
+            const timeShift = deltaX / pixelRatio;
+            
+            // Calculate new start and end times
+            let newStart = startTime + timeShift;
+            let newEnd = endTime + timeShift;
+            
+            // Enforce slider boundaries
+            if (newStart < sliderRange.min) {
+              const diff = sliderRange.min - newStart;
+              newStart = sliderRange.min;
+              newEnd = newEnd + diff;
+            } else if (newEnd > sliderRange.max) {
+              const diff = newEnd - sliderRange.max;
+              newEnd = sliderRange.max;
+              newStart = newStart - diff;
+            }
+            
+            // Set new values directly through noUiSlider API
+            window.dateSlider.set([newStart, newEnd]);
+          }
+          
+          // Setup touch end handler
+          function onTouchEnd() {
+            tooltip.style.cursor = 'grab';
+            tooltip.style.boxShadow = '';
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+            document.removeEventListener('touchcancel', onTouchEnd);
+            
+            // Apply changes via the filter system
+            const finalValues = window.dateSlider.get().map(Number);
+            updateDateFiltersFromSlider(finalValues[0], finalValues[1]);
+            applyFilters();
+            processAllData();
+          }
+          
+          // Add event listeners for touch movement and end
+          document.addEventListener('touchmove', onTouchMove, { passive: false });
+          document.addEventListener('touchend', onTouchEnd);
+          document.addEventListener('touchcancel', onTouchEnd);
+        });
+        
+        // Mouse support for desktop - as fallback
+        tooltip.addEventListener('mousedown', function(e) {
+          // Prevent the default to avoid text selection
+          e.preventDefault();
+          
+          // Change cursor to grabbing during drag
+          tooltip.style.cursor = 'grabbing';
+          tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)'; // Visual feedback
+          
+          // Get the slider dimensions
+          const sliderRect = sliderElement.getBoundingClientRect();
+          
+          // Calculate the exact position where the connect bar should be clicked
+          const connectRect = connectBar.getBoundingClientRect();
+          const connectCenter = (connectRect.left + connectRect.right) / 2 - sliderRect.left;
+          
+          // Create and dispatch a mousedown event on the connect bar
+          const mouseEvent = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: sliderRect.left + connectCenter,
+            clientY: e.clientY,
+            screenX: sliderRect.left + connectCenter,
+            screenY: e.screenY,
+            button: 0,
+            buttons: 1 // Left button pressed
+          });
+          
+          // Need to both prevent this event and dispatch a new one
+          e.stopPropagation();
+          
+          // This is the key part - dispatch the event on the connect bar
+          connectBar.dispatchEvent(mouseEvent);
+          
+          // Set up mouseup listener to restore tooltip appearance
+          const onMouseUp = function() {
+            tooltip.style.cursor = 'grab';
+            tooltip.style.boxShadow = '';
+            document.removeEventListener('mouseup', onMouseUp);
+          };
+          document.addEventListener('mouseup', onMouseUp);
+        });
+      }      // Handle slider changes
       window.dateSlider.on('update', function(values, handle) {
         const timestamps = values.map(Number);
         
@@ -4518,8 +4659,7 @@
           'Start: ' + formatSliderDate(newStartDate);
         document.getElementById('sliderEndTimestamp').textContent = 
           'Ende: ' + formatSliderDate(newEndDate);
-      });
-        // Add event listeners to the shift range buttons - use the same functions as the timeframe buttons
+      });      // Add event listeners to the shift range buttons - use the same functions as the timeframe buttons
       document.getElementById('shiftRangeLeft').addEventListener('click', function() {
         movePreviousPeriod();
       });
