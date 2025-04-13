@@ -1,10 +1,10 @@
 param (
-    [int]$Start = 52001,
-    [int]$End = 58000
+    [int]$Start = 58001,
+    [int]$End = 68000
 )
 
 $sourceFile = "ASTM_TestBlock.ext"
-$targetFolder = ".\"
+$targetFolder = "..\QUEUE"
 
 # Zielordner erstellen, falls nicht vorhanden
 if (-not (Test-Path $targetFolder)) {

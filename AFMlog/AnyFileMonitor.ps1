@@ -73,6 +73,12 @@ if ($config.ContainsKey('emailEnabled') -and $config['emailEnabled'] -eq 'true')
     if ($config.ContainsKey('emailInputThreshold')) {
         $emailInputThreshold = [int]$config['emailInputThreshold']
     }
+    
+    # Neue Konfiguration für Inaktivitäts-Erkennung
+    $emailNoActivityMinutes = 0
+    if ($config.ContainsKey('emailNoActivityMinutes')) {
+        $emailNoActivityMinutes = [int]$config['emailNoActivityMinutes']
+    }
 }
 
 # Pfad für das Muster-Log (Treffer der RegEx-Ausdrücke)
@@ -157,6 +163,78 @@ Ihr AnyFileMonitor
     }
     catch {
         Write-Host "Fehler beim Senden der E-Mail über verzögerte Verarbeitung: $_" -ForegroundColor Red
+    }
+}
+
+# Prüfen auf Inaktivität (keine neuen Dateien verarbeitet seit X Minuten)
+if ($emailEnabled -and $emailNoActivityMinutes -gt 0) {
+    try {
+        $mostRecentFile = Get-ChildItem -Path $archivPath -File -ErrorAction SilentlyContinue | 
+                           Sort-Object LastWriteTime -Descending | 
+                           Select-Object -First 1
+        
+        if ($mostRecentFile) {
+            $lastFileTime = $mostRecentFile.LastWriteTime
+            $inactiveTime = (Get-Date) - $lastFileTime
+            $inactiveMinutes = $inactiveTime.TotalMinutes
+            
+            Write-Host "Letzte Dateiverschiebung vor $([Math]::Round($inactiveMinutes, 2)) Minuten." -ForegroundColor Cyan
+            
+            if ($inactiveMinutes -gt $emailNoActivityMinutes) {
+                # E-Mail-Inhalt für Inaktivitätswarnung erstellen
+                $emailBodyInactivity = @"
+Hallo,
+
+das AnyFileMonitor-Skript hat festgestellt, dass seit $([Math]::Round($inactiveMinutes, 0)) Minuten keine Dateien mehr verarbeitet wurden.
+(Schwellwert: $emailNoActivityMinutes Minuten)
+
+Die letzte Datei wurde am $($lastFileTime.ToString("yyyy-MM-dd HH:mm:ss")) verarbeitet.
+Bitte prüfen Sie, ob es Probleme mit der Dateiverarbeitung gibt.
+
+Mit freundlichen Grüssen,
+Ihr AnyFileMonitor
+"@
+                
+                if ($emailUsername -and ($emailPassword -and $emailPassword.Trim() -ne "")) {
+                    # Benutzername und Passwort vorhanden, Anmeldeinformationen erstellen
+                    $securePassword = ConvertTo-SecureString $emailPassword -AsPlainText -Force
+                    $credentials = New-Object System.Management.Automation.PSCredential ($emailUsername, $securePassword)
+                } elseif ($emailUsername) {
+                    # Nur Benutzername vorhanden, leeres Passwort verwenden
+                    $securePassword = ConvertTo-SecureString "" -AsPlainText -Force
+                    $credentials = New-Object System.Management.Automation.PSCredential ($emailUsername, $securePassword)
+                } else {
+                    # Weder Benutzername noch Passwort vorhanden, keine Anmeldeinformationen
+                    $credentials = $null
+                }
+                
+                # E-Mail-Parameter
+                $mailParams = @{
+                    SmtpServer = $emailSmtpServer
+                    Port = $emailSmtpPort
+                    UseSsl = $emailUseSSL
+                    From = $emailFrom
+                    To = $emailTo
+                    Subject = "Inaktivitätswarnung: Keine Dateien verarbeitet"
+                    Body = $emailBodyInactivity
+                }
+                
+                # Anmeldeinformationen nur hinzufügen, wenn sie existieren
+                if ($credentials) {
+                    $mailParams.Credential = $credentials
+                }
+                
+                # E-Mail senden
+                Send-MailMessage @mailParams
+                
+                Write-Host "E-Mail über Inaktivität wurde gesendet: Keine Dateien seit $([Math]::Round($inactiveMinutes, 0)) Minuten verarbeitet." -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "Warnung: Keine Dateien im Archiv-Ordner gefunden." -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Host "Fehler bei der Inaktivitätsprüfung: $_" -ForegroundColor Red
     }
 }
 
