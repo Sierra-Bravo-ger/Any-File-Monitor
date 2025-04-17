@@ -1,0 +1,110 @@
+/* Header styles */
+.mdl-layout__header {
+  background-color: var(--header-bg-color);
+  color: var(--header-text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  position: fixed;
+  z-index: 10; /* Ensure header stays above accordion */
+}
+
+.mdl-layout__header-row {
+  padding: 0 16px;
+  height: 64px;
+}
+
+.mdl-layout-title {
+  color: var(--header-text-color);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+/* Logo styling */
+.app-logo {
+  height: 40px;
+  margin-right: 16px;
+}
+
+/* Theme toggle switch */
+.theme-switch-wrapper {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+}
+
+.theme-switch {
+  display: inline-block;
+  height: 24px;
+  position: relative;
+  width: 48px;
+}
+
+.theme-switch input {
+  display: none;
+}
+
+.slider {
+  background-color: #ccc;
+  bottom: 0;
+  cursor: pointer;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  background-color: white;
+  bottom: 4px;
+  content: "";
+  height: 16px;
+  left: 4px;
+  position: absolute;
+  transition: .4s;
+  width: 16px;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--accent-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+.theme-icon {
+  margin: 0 4px;
+  font-size: 16px;
+}
+
+/* Header actions container */
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* Filter toggle button */
+.filter-toggle-button {
+  margin-right: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .mdl-layout-title {
+    font-size: 16px;
+  }
+  
+  .app-logo {
+    height: 32px;
+  }
+  
+  .theme-switch-wrapper {
+    margin-left: 8px;
+  }
+  
+  .mdl-layout__header-row {
+    padding: 0 8px;
+  }
+}

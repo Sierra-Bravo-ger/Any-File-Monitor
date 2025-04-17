@@ -81,6 +81,77 @@ if ($config.ContainsKey('emailEnabled') -and $config['emailEnabled'] -eq 'true')
     }
 }
 
+# WebHook-Konfiguration aus config.ini laden
+$webhookEnabled = $false
+if ($config.ContainsKey('WebHookEnabled') -and $config['WebHookEnabled'] -eq 'true') {
+    $webhookEnabled = $true
+    $webhookUrl = $config['WebHookUrl']
+    
+    # Verwende die gleichen Schwellwerte wie für E-Mail
+    $webhookMinPatternMatches = $emailMinPatternMatches
+    $webhookInputThreshold = $emailInputThreshold
+    $webhookNoActivityMinutes = $emailNoActivityMinutes
+}
+
+# Funktion zum Senden von WebHook-Benachrichtigungen
+function Send-WebhookNotification {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Title,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$Message,
+        
+        [Parameter(Mandatory=$false)]
+        [string]$Color = "#ff0000"  # Rot als Standardfarbe für Fehler
+    )
+    
+    if (-not $webhookEnabled) {
+        return
+    }
+    
+    try {
+        # Escape newlines for JSON compatibility and ensure proper Unicode handling
+        $escapedMessage = $Message.Replace("\", "\\").Replace("`n", "\\n").Replace("`r", "\\r").Replace("`t", "\\t").Replace('"', '\"')
+        $escapedTitle = $Title.Replace("\", "\\").Replace("`n", "\\n").Replace("`r", "\\r").Replace("`t", "\\t").Replace('"', '\"')
+        
+        # Convert hex color to decimal for Discord
+        $colorDecimal = if ($Color -eq "#ff0000") { 16711680 } elseif ($Color -eq "#ffa500") { 16753920 } else { 5025616 }
+        
+        # Create JSON payload manually to ensure proper formatting
+        $jsonPayload = @"
+{
+  "embeds": [
+    {
+      "title": "$escapedTitle",
+      "description": "$escapedMessage",
+      "color": $colorDecimal,
+      "footer": {
+        "text": "AnyFileMonitor - $timestamp"
+      }
+    }
+  ]
+}
+"@
+        
+        # Senden der Webhook-Nachricht
+        $params = @{
+            Uri = $webhookUrl
+            Method = 'POST'
+            Body = $jsonPayload
+            ContentType = 'application/json; charset=UTF-8'
+        }
+        
+        Invoke-RestMethod @params
+        
+        Write-Host "Webhook-Benachrichtigung wurde gesendet: $Title" -ForegroundColor Cyan
+    }
+    catch {
+        Write-Host "Fehler beim Senden der Webhook-Benachrichtigung: $_" -ForegroundColor Red
+        Write-Host "Payload: $jsonPayload" -ForegroundColor DarkGray
+    }
+}
+
 # Pfad für das Muster-Log (Treffer der RegEx-Ausdrücke)
 $patternLogPath = Join-Path $PSScriptRoot "AFM_pattern_matches.csv"
 
@@ -164,6 +235,12 @@ Ihr AnyFileMonitor
     catch {
         Write-Host "Fehler beim Senden der E-Mail über verzögerte Verarbeitung: $_" -ForegroundColor Red
     }
+    
+    # Auch Webhook-Benachrichtigung senden, wenn aktiviert
+    if ($webhookEnabled -and $webhookInputThreshold -gt 0 -and $inputCount -gt $webhookInputThreshold) {
+        $webhookMessage = "Das AnyFileMonitor-Skript hat $inputCount Dateien im $inputPath gefunden.`n`nDies deutet normalerweise auf verzögerte Bearbeitung hin."
+        Send-WebhookNotification -Title "Verzögerte Verarbeitung" -Message $webhookMessage -Color "#ffa500"  # Orange für Warnungen
+    }
 }
 
 # Prüfen auf Inaktivität (keine neuen Dateien verarbeitet seit X Minuten)
@@ -228,6 +305,12 @@ Ihr AnyFileMonitor
                 Send-MailMessage @mailParams
                 
                 Write-Host "E-Mail über Inaktivität wurde gesendet: Keine Dateien seit $([Math]::Round($inactiveMinutes, 0)) Minuten verarbeitet." -ForegroundColor Yellow
+                
+                # Auch Webhook-Benachrichtigung senden, wenn aktiviert
+                if ($webhookEnabled -and $webhookNoActivityMinutes -gt 0 -and $inactiveMinutes -gt $webhookNoActivityMinutes) {
+                    $webhookMessage = "Das AnyFileMonitor-Skript hat festgestellt, dass seit $([Math]::Round($inactiveMinutes, 0)) Minuten keine Dateien mehr verarbeitet wurden.`n(Schwellwert: $webhookNoActivityMinutes Minuten)`n`nDie letzte Datei wurde am $($lastFileTime.ToString("yyyy-MM-dd HH:mm:ss")) verarbeitet.`nBitte prüfen Sie, ob es Probleme mit der Dateiverarbeitung gibt."
+                    Send-WebhookNotification -Title "Inaktivitätswarnung: Keine Dateien verarbeitet" -Message $webhookMessage -Color "#ffa500"  # Orange für Warnungen
+                }
             }
         } else {
             Write-Host "Warnung: Keine Dateien im Archiv-Ordner gefunden." -ForegroundColor Yellow
@@ -318,7 +401,7 @@ foreach ($errFile in $errorFilesForProcessing) {
         }
 
         # Fehlerlog schreiben
-        "$timestamp;$errorFilename;$errorText;$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding default
+        "$timestamp;$errorFilename;$errorText;$extFilename;$extText" | Out-File -FilePath $errorLog -Append -Encoding utf8
 
         # Bei der Musterprüfung mit verbessertem Debugging
         foreach ($pattern in $errorPatterns) {
@@ -511,6 +594,28 @@ Ihr AnyFileMonitor
         }
         catch {
             Write-Host "Fehler beim Senden der E-Mail: $_"
+        }
+        
+        # Auch Webhook-Benachrichtigung senden, wenn aktiviert
+        if ($webhookEnabled -and $patternMatches.Count -ge $webhookMinPatternMatches) {
+            # Webhook-Nachricht erstellen
+            $webhookMessage = "Das AnyFileMonitor-Skript hat $($patternMatches.Count) Muster in den Fehlertexten gefunden.`n`nDetails zu den gefundenen Mustern:`n`n"
+            
+            # Die ersten 5 Muster (oder alle, wenn weniger) in die Webhook-Nachricht einfügen
+            $maxDetailsToShow = [Math]::Min(5, $patternMatches.Count)  # Begrenzen auf 5 für Discord
+            for ($i = 0; $i -lt $maxDetailsToShow; $i++) {
+                $match = $patternMatches[$i]
+                $webhookMessage += "**Datei:** $($match.Datei)`n"
+                $webhookMessage += "**Muster:** $($match.Muster)`n"
+                $webhookMessage += "**Zeitpunkt:** $($match.Zeitpunkt)`n"
+                $webhookMessage += "-------------------------------`n"
+            }
+            
+            if ($patternMatches.Count -gt 5) {
+                $webhookMessage += "`n... und $(($patternMatches.Count) - 5) weitere Treffer."
+            }
+            
+            Send-WebhookNotification -Title "$emailSubject ($($patternMatches.Count) Muster gefunden)" -Message $webhookMessage -Color "#ff0000"  # Rot für Fehler
         }
     }
 }

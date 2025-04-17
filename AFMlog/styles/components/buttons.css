@@ -1,0 +1,131 @@
+/* Button styles */
+
+/* Base button styles */
+.mdl-button {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+/* Filter button styles */
+.filter-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--card-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  margin: 0 4px;
+  position: relative;
+  z-index: var(--z-index-base);
+}
+
+.filter-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+}
+
+.filter-button.active {
+  background-color: var(--active-color, rgba(0, 0, 0, 0.2));
+}
+
+.filter-button-text {
+  margin-right: 8px;
+}
+
+.filter-button-icon {
+  font-size: 18px;
+}
+
+/* Refresh button */
+.refresh-button {
+  position: relative;
+  z-index: 1000;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.refresh-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.refresh-button .material-icons {
+  font-size: 20px;
+}
+
+/* Refresh button spin animation */
+@keyframes spin-multiple {
+  0% { transform: rotate(0deg); }
+  80% { transform: rotate(1080deg); } /* 3 full rotations with overshoot */
+  100% { transform: rotate(1080deg); }
+}
+
+.refresh-button.spinning {
+  animation: spin-multiple 1.2s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+  pointer-events: none; /* Prevent multiple clicks during animation */
+}
+
+/* Mobile-specific refresh button styling */
+.mobile-device .refresh-button {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  min-height: 48px !important;
+}
+
+.mobile-device .refresh-button .material-icons {
+  font-size: 24px;
+}
+
+/* Timeframe navigation buttons */
+.timeframe-button {
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.timeframe-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Date/time control buttons */
+.date-time-control-btn {
+  min-width: 30px !important;
+  min-height: 30px !important;
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  margin: 2px 0 !important;
+}
+
+/* Improve date/time control buttons for touch */
+.date-time-control-btn {
+  min-width: 40px !important;
+  min-height: 40px !important;
+}
+
+/* Footer buttons container */
+.footer-buttons {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+}

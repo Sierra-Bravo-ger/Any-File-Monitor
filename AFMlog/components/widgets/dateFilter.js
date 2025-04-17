@@ -4,6 +4,7 @@
  */
 import { formatDate, formatTime, formatDateTime, debounce } from '../../scripts/utils.js';
 import { adjustDate, adjustTime } from '../../scripts/dateUtils.js';
+import { registerDropdownWithAccordion, unregisterDropdownFromAccordion } from '../../scripts/uiManager.js';
 
 // Default values
 const DEFAULT_RANGE_DAYS = 1;
@@ -84,197 +85,81 @@ function createDateFilterUI(container, onFilterChange) {
   // Clear container
   container.innerHTML = '';
   
-  // Create date range slider container
-  const sliderContainer = document.createElement('div');
-  sliderContainer.className = 'date-range-slider-container mdl-shadow--2dp';
+  // Clone the date range slider template
+  const template = document.getElementById('date-range-slider-template');
+  if (!template) {
+    console.error('Date range slider template not found');
+    return;
+  }
   
-  // Create slider title
-  const sliderTitle = document.createElement('div');
-  sliderTitle.className = 'date-range-slider-title';
-  sliderTitle.textContent = 'Zeitraumauswahl';
-  sliderContainer.appendChild(sliderTitle);
+  // Clone the template content
+  const dateRangeSlider = template.content.cloneNode(true);
   
-  // Create slider controls
-  const sliderControls = document.createElement('div');
-  sliderControls.className = 'slider-controls';
+  // Add event listeners to the prev/next period buttons
+  const prevBtn = dateRangeSlider.querySelector('#prevPeriodBtn');
+  const nextBtn = dateRangeSlider.querySelector('#nextPeriodBtn');
   
-  // Create slider
-  const slider = document.createElement('div');
-  slider.id = 'dateRangeSlider';
-  slider.className = 'slider-container';
-  sliderControls.appendChild(slider);
+  if (prevBtn) {
+    prevBtn.addEventListener('click', function() {
+      shiftDateRange(-1, onFilterChange);
+    });
+  }
   
-  // Create slider duration tooltip
-  const sliderTooltip = document.createElement('div');
-  sliderTooltip.id = 'sliderDurationTooltip';
-  sliderTooltip.className = 'slider-duration-tooltip';
-  sliderTooltip.textContent = '1 Tag';
-  sliderTooltip.style.position = 'absolute';
-  sliderTooltip.style.top = '0px'; // Position closer to the slider
-  sliderTooltip.style.left = '50%';
-  sliderTooltip.style.transform = 'translateX(-50%)';
-  sliderTooltip.style.backgroundColor = 'var(--accent-color, #3f51b5)';
-  sliderTooltip.style.color = 'white';
-  sliderTooltip.style.padding = '4px 8px';
-  sliderTooltip.style.borderRadius = '4px';
-  sliderTooltip.style.fontSize = '12px';
-  sliderTooltip.style.whiteSpace = 'nowrap';
-  sliderTooltip.style.zIndex = '5';
-  sliderTooltip.style.display = 'block';
-  sliderTooltip.style.cursor = 'grab';
-  sliderControls.appendChild(sliderTooltip);
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function() {
+      shiftDateRange(1, onFilterChange);
+    });
+  }
   
-  // Create time markers
-  const timeMarkers = document.createElement('div');
-  timeMarkers.id = 'timeMarkers';
-  timeMarkers.className = 'time-markers';
-  sliderControls.appendChild(timeMarkers);
+  // Handle the quick filter button
+  const quickFilterBtn = dateRangeSlider.querySelector('#quick-filter-button');
+  if (quickFilterBtn) {
+    quickFilterBtn.addEventListener('click', function(event) {
+      toggleQuickFilterDropdown(event);
+    });
+  }
   
-  sliderContainer.appendChild(sliderControls);
+  // Handle the error type filter button
+  const errorTypeFilterBtn = dateRangeSlider.querySelector('#error-type-filter-button');
+  if (errorTypeFilterBtn) {
+    errorTypeFilterBtn.addEventListener('click', function(event) {
+      // Call the error type filter toggle function if it exists
+      if (typeof window.toggleErrorTypeDropdownDirect === 'function') {
+        window.toggleErrorTypeDropdownDirect(event);
+      }
+    });
+  }
   
-  // Create timeframe navigation
-  const timeframeNav = document.createElement('div');
-  timeframeNav.className = 'timeframe-navigation';
+  // Create a main container for all filter elements
+  const filterElementsContainer = document.createElement('div');
+  filterElementsContainer.className = 'filter-elements-container';
   
-  // Store reference to module function
-  const moduleShiftDateRange = shiftDateRange;
+  // Add the date range slider to the filter elements container
+  filterElementsContainer.appendChild(dateRangeSlider);
   
-  // Previous period button
-  const prevBtn = document.createElement('button');
-  prevBtn.id = 'prevPeriodBtn';
-  prevBtn.className = 'timeframe-button';
-  prevBtn.onclick = function() { 
-    moduleShiftDateRange(-1, onFilterChange); 
-  };
-  const prevIcon = document.createElement('i');
-  prevIcon.className = 'material-icons';
-  prevIcon.textContent = 'chevron_left';
-  prevBtn.appendChild(prevIcon);
-  timeframeNav.appendChild(prevBtn);
+  // Create a wrapper for date inputs to control their layout
+  const dateInputsWrapper = document.createElement('div');
+  dateInputsWrapper.className = 'date-time-filter-groups';
   
-  // Timeframe display
-  const timeframeDisplay = document.createElement('div');
-  timeframeDisplay.id = 'timeframeDisplay';
-  timeframeDisplay.className = 'timeframe-display';
-  timeframeDisplay.innerHTML = 'Zeitraum: <span id="timeframeDuration">1 Tag</span>';
-  timeframeNav.appendChild(timeframeDisplay);
+  // Create the date/time input groups
+  dateInputsWrapper.appendChild(createDateTimeGroup('Startdatum und -zeit', 'startDate', 'startTime'));
+  dateInputsWrapper.appendChild(createDateTimeGroup('Enddatum und -zeit', 'endDate', 'endTime'));
   
-  // Next period button
-  const nextBtn = document.createElement('button');
-  nextBtn.id = 'nextPeriodBtn';
-  nextBtn.className = 'timeframe-button';
-  nextBtn.onclick = function() { 
-    moduleShiftDateRange(1, onFilterChange); 
-  };
-  const nextIcon = document.createElement('i');
-  nextIcon.className = 'material-icons';
-  nextIcon.textContent = 'chevron_right';
-  nextBtn.appendChild(nextIcon);
-  timeframeNav.appendChild(nextBtn);
+  // Add the date/time input groups to the filter elements container
+  filterElementsContainer.appendChild(dateInputsWrapper);
   
-  // Quick filter dropdown container
-  const quickFilterContainer = document.createElement('div');
-  quickFilterContainer.className = 'quick-filter-dropdown-container';
+  // Add the filter elements container to the main container
+  container.appendChild(filterElementsContainer);
   
-  // Quick filter button
-  const quickFilterBtn = document.createElement('button');
-  quickFilterBtn.id = 'quick-filter-button';
-  quickFilterBtn.className = 'mdl-button mdl-js-button mdl-button--icon';
-  quickFilterBtn.title = 'Schnell-Filter';
-  
-  // Use local function reference instead of global window function
-  quickFilterBtn.onclick = function(event) { 
-    toggleQuickFilterDropdown(event); 
+  // Store references to module functions for global access if needed
+  // These are used by inline handlers in the HTML
+  window.resetDateFilter = function() {
+    resetDateFilter(onFilterChange);
   };
   
-  const filterIcon = document.createElement('i');
-  filterIcon.className = 'material-icons';
-  filterIcon.textContent = 'filter_list';
-  quickFilterBtn.appendChild(filterIcon);
-  quickFilterContainer.appendChild(quickFilterBtn);
-  
-  // Quick filter dropdown
-  const quickFilterDropdown = document.createElement('div');
-  quickFilterDropdown.className = 'quick-filter-dropdown-content';
-  quickFilterDropdown.id = 'quickFilterDropdown';
-  
-  // Add quick filter options
-  const quickFilterOptions = [
-    { value: 5, unit: 'minute', label: 'Letzte 5 Minuten' },
-    { value: 15, unit: 'minute', label: 'Letzte 15 Minuten' },
-    { value: 30, unit: 'minute', label: 'Letzte 30 Minuten' },
-    { value: 60, unit: 'minute', label: 'Letzte 60 Minuten' },
-    { value: 4, unit: 'hour', label: 'Letzte 4 Stunden' },
-    { value: 8, unit: 'hour', label: 'Letzte 8 Stunden' },
-    { value: 1, unit: 'day', label: 'Letzter Tag' },
-    { value: 7, unit: 'day', label: 'Letzte Woche' },
-    { value: 14, unit: 'day', label: 'Letzte 2 Wochen' },
-    { value: 30, unit: 'day', label: 'Letzter Monat' },
-    { value: 90, unit: 'day', label: 'Letzte 3 Monate' },
-    { value: 180, unit: 'day', label: 'Letzte 6 Monate' },
-    { value: 365, unit: 'day', label: 'Letztes Jahr' }
-  ];
-  
-  // Store a reference to the module's applyQuickFilter function
-  const moduleApplyQuickFilter = applyQuickFilter;
-  
-  quickFilterOptions.forEach(option => {
-    const item = document.createElement('div');
-    item.className = 'quick-filter-dropdown-item';
-    item.textContent = option.label;
-    
-    // Use local function reference instead of global window function
-    item.onclick = function() {
-      // Call the module's applyQuickFilter function directly with the onFilterChange callback
-      moduleApplyQuickFilter(option.value, option.unit, onFilterChange);
-      quickFilterDropdown.style.display = 'none';
-    };
-    
-    quickFilterDropdown.appendChild(item);
-  });
-  
-  quickFilterContainer.appendChild(quickFilterDropdown);
-  timeframeNav.appendChild(quickFilterContainer);
-  
-  sliderContainer.appendChild(timeframeNav);
-  
-  // Create date/time inputs
-  const startDateGroup = createDateTimeGroup('Startdatum und -zeit', 'startDate', 'startTime');
-  const endDateGroup = createDateTimeGroup('Enddatum und -zeit', 'endDate', 'endTime');
-  
-  // Create filter actions
-  const filterActions = document.createElement('div');
-  filterActions.className = 'filter-actions';
-  
-  // Store references to module functions
-  const moduleResetDateFilter = resetDateFilter;
-  const moduleApplyDateFilter = applyDateFilter;
-  
-  // Reset button
-  const resetBtn = document.createElement('button');
-  resetBtn.id = 'resetFilterBtn';
-  resetBtn.className = 'mdl-button mdl-js-button';
-  resetBtn.textContent = 'Zurücksetzen';
-  resetBtn.onclick = function() { 
-    moduleResetDateFilter(onFilterChange); 
+  window.applyDateFilter = function() {
+    applyDateFilter(onFilterChange);
   };
-  filterActions.appendChild(resetBtn);
-  
-  // Apply button
-  const applyBtn = document.createElement('button');
-  applyBtn.id = 'applyFilterBtn';
-  applyBtn.className = 'mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent';
-  applyBtn.textContent = 'Anwenden';
-  applyBtn.onclick = function() { 
-    moduleApplyDateFilter(onFilterChange); 
-  };
-  filterActions.appendChild(applyBtn);
-  
-  // Append all elements to container
-  container.appendChild(sliderContainer);
-  container.appendChild(startDateGroup);
-  container.appendChild(endDateGroup);
-  container.appendChild(filterActions);
 }
 
 /**
@@ -285,144 +170,105 @@ function createDateFilterUI(container, onFilterChange) {
  * @returns {HTMLElement} - Date/time group element
  */
 function createDateTimeGroup(label, dateId, timeId) {
-  const group = document.createElement('div');
-  group.className = 'filter-group';
-  group.style.display = 'flex';
-  group.style.flexDirection = 'column';
-  group.style.margin = '8px 16px';
-  group.style.justifyContent = 'flex-start';
+  // Clone the date-time group template
+  const template = document.getElementById('date-time-group-template');
+  if (!template) {
+    console.error('Date-time group template not found');
+    return document.createElement('div'); // Return empty div as fallback
+  }
   
-  const labelEl = document.createElement('label');
-  labelEl.className = 'filter-label';
-  labelEl.style.color = 'white';
-  labelEl.style.marginTop = '0';
-  labelEl.textContent = label;
-  group.appendChild(labelEl);
+  // Clone the template content
+  const group = template.content.cloneNode(true);
   
-  const inputGroup = document.createElement('div');
-  inputGroup.className = 'date-time-input-group';
+  // Set the label text and for attribute
+  const labelEl = group.querySelector('.filter-label');
+  if (labelEl) {
+    labelEl.textContent = label;
+    // Set the for attribute to point to the date input
+    labelEl.setAttribute('for', dateId);
+  }
   
-  // Date input container
-  const dateContainer = document.createElement('div');
-  dateContainer.className = 'date-time-flex-container';
+  // Set IDs and names for the date and time inputs
+  const dateInput = group.querySelector('.date-input');
+  const timeInput = group.querySelector('.time-input');
   
-  // Date input
-  const dateInput = document.createElement('input');
-  dateInput.type = 'date';
-  dateInput.id = dateId;
-  dateInput.className = 'date-input';
-  dateContainer.appendChild(dateInput);
+  if (dateInput) {
+    dateInput.id = dateId;
+    dateInput.name = dateId;
+    dateInput.setAttribute('aria-label', `${label} Datum`);
+  }
   
-  // Date controls
-  const dateControls = document.createElement('div');
-  dateControls.className = 'date-time-controls';
+  if (timeInput) {
+    timeInput.id = timeId;
+    timeInput.name = timeId;
+    timeInput.setAttribute('aria-label', `${label} Zeit`);
+    
+    // Create a second label for the time input
+    const timeLabel = document.createElement('label');
+    timeLabel.className = 'visually-hidden';
+    timeLabel.setAttribute('for', timeId);
+    timeLabel.textContent = `${label} Zeit`;
+    
+    // Insert the time label before the time input
+    if (timeInput.parentNode) {
+      timeInput.parentNode.insertBefore(timeLabel, timeInput);
+    }
+  }
   
-  // Up button
-  const dateUpBtn = document.createElement('button');
-  dateUpBtn.className = 'mdl-button mdl-js-button mdl-button--icon date-time-control-btn';
-  dateUpBtn.onclick = function() { 
-    adjustDate(dateId, 1, 'day', function(start, end) {
-      // Update global date variables
-      window.startDate = start;
-      window.endDate = end;
-      
-      // Apply filters and update UI if the functions are available
-      if (typeof window.applyFilters === 'function') window.applyFilters();
-      if (typeof window.updateUI === 'function') window.updateUI();
-      if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
+  // Set accessibility attributes for control buttons
+  const dateUpBtn = group.querySelector('[data-control="date"][data-amount="1"]');
+  const dateDownBtn = group.querySelector('[data-control="date"][data-amount="-1"]');
+  const timeUpBtn = group.querySelector('[data-control="time"][data-amount="1"]');
+  const timeDownBtn = group.querySelector('[data-control="time"][data-amount="-1"]');
+  
+  if (dateUpBtn) dateUpBtn.setAttribute('aria-label', `${label} Datum erhöhen`);
+  if (dateDownBtn) dateUpBtn.setAttribute('aria-label', `${label} Datum verringern`);
+  if (timeUpBtn) timeUpBtn.setAttribute('aria-label', `${label} Zeit erhöhen`);
+  if (timeDownBtn) timeDownBtn.setAttribute('aria-label', `${label} Zeit verringern`);
+  
+  // Set data attributes and event listeners for date control buttons
+  const dateButtons = group.querySelectorAll('[data-control="date"]');
+  dateButtons.forEach(button => {
+    button.dataset.input = dateId;
+    button.dataset.unit = 'day';
+    
+    // Add event listener
+    button.addEventListener('click', function() {
+      const amount = parseInt(this.dataset.amount) || 0;
+      adjustDate(dateId, amount, 'day', function(start, end) {
+        // Update global date variables
+        window.startDate = start;
+        window.endDate = end;
+        
+        // Apply filters and update UI if the functions are available
+        if (typeof window.applyFilters === 'function') window.applyFilters();
+        if (typeof window.updateUI === 'function') window.updateUI();
+        if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
+      });
     });
-  };
-  const dateUpIcon = document.createElement('i');
-  dateUpIcon.className = 'material-icons';
-  dateUpIcon.textContent = 'keyboard_arrow_up';
-  dateUpBtn.appendChild(dateUpIcon);
-  dateControls.appendChild(dateUpBtn);
+  });
   
-  // Down button
-  const dateDownBtn = document.createElement('button');
-  dateDownBtn.className = 'mdl-button mdl-js-button mdl-button--icon date-time-control-btn';
-  dateDownBtn.onclick = function() { 
-    adjustDate(dateId, -1, 'day', function(start, end) {
-      // Update global date variables
-      window.startDate = start;
-      window.endDate = end;
-      
-      // Apply filters and update UI if the functions are available
-      if (typeof window.applyFilters === 'function') window.applyFilters();
-      if (typeof window.updateUI === 'function') window.updateUI();
-      if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
+  // Set data attributes and event listeners for time control buttons
+  const timeButtons = group.querySelectorAll('[data-control="time"]');
+  timeButtons.forEach(button => {
+    button.dataset.input = timeId;
+    button.dataset.unit = 'hour';
+    
+    // Add event listener
+    button.addEventListener('click', function() {
+      const amount = parseInt(this.dataset.amount) || 0;
+      adjustTime(timeId, amount, 'hour', function(start, end) {
+        // Update global date variables
+        window.startDate = start;
+        window.endDate = end;
+        
+        // Apply filters and update UI if the functions are available
+        if (typeof window.applyFilters === 'function') window.applyFilters();
+        if (typeof window.updateUI === 'function') window.updateUI();
+        if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
+      });
     });
-  };
-  const dateDownIcon = document.createElement('i');
-  dateDownIcon.className = 'material-icons';
-  dateDownIcon.textContent = 'keyboard_arrow_down';
-  dateDownBtn.appendChild(dateDownIcon);
-  dateControls.appendChild(dateDownBtn);
-  
-  dateContainer.appendChild(dateControls);
-  inputGroup.appendChild(dateContainer);
-  
-  // Time input container
-  const timeContainer = document.createElement('div');
-  timeContainer.className = 'date-time-flex-container';
-  
-  // Time input
-  const timeInput = document.createElement('input');
-  timeInput.type = 'time';
-  timeInput.id = timeId;
-  timeInput.className = 'time-input';
-  timeContainer.appendChild(timeInput);
-  
-  // Time controls
-  const timeControls = document.createElement('div');
-  timeControls.className = 'date-time-controls';
-  
-  // Up button
-  const timeUpBtn = document.createElement('button');
-  timeUpBtn.className = 'mdl-button mdl-js-button mdl-button--icon date-time-control-btn';
-  timeUpBtn.onclick = function() { 
-    adjustTime(timeId, 1, 'hour', function(start, end) {
-      // Update global date variables
-      window.startDate = start;
-      window.endDate = end;
-      
-      // Apply filters and update UI if the functions are available
-      if (typeof window.applyFilters === 'function') window.applyFilters();
-      if (typeof window.updateUI === 'function') window.updateUI();
-      if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
-    });
-  };
-  const timeUpIcon = document.createElement('i');
-  timeUpIcon.className = 'material-icons';
-  timeUpIcon.textContent = 'keyboard_arrow_up';
-  timeUpBtn.appendChild(timeUpIcon);
-  timeControls.appendChild(timeUpBtn);
-  
-  // Down button
-  const timeDownBtn = document.createElement('button');
-  timeDownBtn.className = 'mdl-button mdl-js-button mdl-button--icon date-time-control-btn';
-  timeDownBtn.onclick = function() { 
-    adjustTime(timeId, -1, 'hour', function(start, end) {
-      // Update global date variables
-      window.startDate = start;
-      window.endDate = end;
-      
-      // Apply filters and update UI if the functions are available
-      if (typeof window.applyFilters === 'function') window.applyFilters();
-      if (typeof window.updateUI === 'function') window.updateUI();
-      if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
-    });
-  };
-  const timeDownIcon = document.createElement('i');
-  timeDownIcon.className = 'material-icons';
-  timeDownIcon.textContent = 'keyboard_arrow_down';
-  timeDownBtn.appendChild(timeDownIcon);
-  timeControls.appendChild(timeDownBtn);
-  
-  timeContainer.appendChild(timeControls);
-  inputGroup.appendChild(timeContainer);
-  
-  group.appendChild(inputGroup);
+  });
   
   return group;
 }
@@ -585,15 +431,44 @@ function initDateRangeSlider(startDate, endDate) {
         const newStartDate = new Date(startTimestamp);
         const newEndDate = new Date(endTimestamp);
         
-        // Update global date variables
-        if (window.startDate !== undefined && window.endDate !== undefined) {
-          window.startDate = newStartDate;
-          window.endDate = newEndDate;
-          
-          // Apply filters and update UI
-          if (typeof window.applyFilters === 'function') window.applyFilters();
-          if (typeof window.updateUI === 'function') window.updateUI();
-          if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
+        // Find the onFilterChange callback
+        let onFilterChange;
+        
+        // Try to find the callback from the module's event listeners
+        const applyFilterBtn = document.getElementById('applyFilterBtn');
+        if (applyFilterBtn && applyFilterBtn._onFilterChange) {
+          onFilterChange = applyFilterBtn._onFilterChange;
+        } 
+        // If not found, use the global window functions as fallback
+        else if (typeof window.applyFilters === 'function' || typeof window.updateUI === 'function') {
+          onFilterChange = function(start, end) {
+            // Update global date variables
+            if (window.startDate !== undefined && window.endDate !== undefined) {
+              window.startDate = start;
+              window.endDate = end;
+              
+              // Apply filters and update UI
+              if (typeof window.applyFilters === 'function') window.applyFilters();
+              if (typeof window.updateUI === 'function') window.updateUI();
+              if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
+            }
+          };
+        }
+        
+        // Call the filter change callback if found
+        if (typeof onFilterChange === 'function') {
+          onFilterChange(newStartDate, newEndDate);
+        } else {
+          // Fallback to direct global function calls if no callback found
+          if (window.startDate !== undefined && window.endDate !== undefined) {
+            window.startDate = newStartDate;
+            window.endDate = newEndDate;
+            
+            // Apply filters and update UI
+            if (typeof window.applyFilters === 'function') window.applyFilters();
+            if (typeof window.updateUI === 'function') window.updateUI();
+            if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
+          }
         }
       } catch (error) {
         console.error('Error handling slider set event:', error);
@@ -786,9 +661,56 @@ function updateRangeFromTooltip(position, isDragging = false) {
   if (isDragging) {
     // Silent update during dragging for better performance
     slider.noUiSlider.set([newStart, newEnd], false);
+    
+    // Store the values for when dragging ends
+    slider._lastDragValues = [newStart, newEnd];
   } else {
     // Normal update when not dragging, will trigger events
     slider.noUiSlider.set([newStart, newEnd]);
+    
+    // If we have stored values from dragging, make sure they're applied
+    if (slider._lastDragValues) {
+      // Apply the final values and ensure UI updates
+      const finalValues = slider._lastDragValues;
+      slider._lastDragValues = null; // Clear stored values
+      
+      // Create date objects from timestamps
+      const startDate = new Date(finalValues[0]);
+      const endDate = new Date(finalValues[1]);
+      
+      // Update date/time inputs to match the new dates
+      updateDateTimeInputs(startDate, endDate);
+      
+      // Find the onFilterChange callback
+      // First check if we have it in the module scope
+      let onFilterChange;
+      
+      // Try to find the callback from the module's event listeners
+      const applyFilterBtn = document.getElementById('applyFilterBtn');
+      if (applyFilterBtn && applyFilterBtn._onFilterChange) {
+        onFilterChange = applyFilterBtn._onFilterChange;
+      } 
+      // If not found, use the global window functions as fallback
+      else if (typeof window.applyFilters === 'function' || typeof window.updateUI === 'function') {
+        onFilterChange = function(start, end) {
+          // Update global date variables
+          if (window.startDate !== undefined && window.endDate !== undefined) {
+            window.startDate = start;
+            window.endDate = end;
+            
+            // Apply filters and update UI
+            if (typeof window.applyFilters === 'function') window.applyFilters();
+            if (typeof window.updateUI === 'function') window.updateUI();
+            if (typeof window.updateFilterDisplay === 'function') window.updateFilterDisplay();
+          }
+        };
+      }
+      
+      // Call the filter change callback if found
+      if (typeof onFilterChange === 'function') {
+        onFilterChange(startDate, endDate);
+      }
+    }
   }
 }
 
@@ -907,16 +829,36 @@ function updateTimeMarkers() {
  */
 function updateDateTimeInputs(startDate, endDate) {
   try {
+    // Get call stack to identify who's calling this function
+    const stack = new Error().stack;
+    console.log('[DateFilter] updateDateTimeInputs called from:', stack);
+    
+    // Skip updates if we're in the middle of user input
+    if (window.isUserEditingDateInput) {
+      console.log('[DateFilter] Skipping updateDateTimeInputs because user is editing');
+      return;
+    }
+    
     // Update start date/time inputs
     const startDateInput = document.getElementById('startDate');
     const startTimeInput = document.getElementById('startTime');
     
     if (startDateInput) {
-      startDateInput.value = formatDateForInput(startDate);
+      const oldValue = startDateInput.value;
+      const newValue = formatDateForInput(startDate);
+      if (oldValue !== newValue) {
+        console.log(`[DateFilter] Updating startDate from ${oldValue} to ${newValue}`);
+        startDateInput.value = newValue;
+      }
     }
     
     if (startTimeInput) {
-      startTimeInput.value = formatTimeForInput(startDate);
+      const oldValue = startTimeInput.value;
+      const newValue = formatTimeForInput(startDate);
+      if (oldValue !== newValue) {
+        console.log(`[DateFilter] Updating startTime from ${oldValue} to ${newValue}`);
+        startTimeInput.value = newValue;
+      }
     }
     
     // Update end date/time inputs
@@ -924,11 +866,21 @@ function updateDateTimeInputs(startDate, endDate) {
     const endTimeInput = document.getElementById('endTime');
     
     if (endDateInput) {
-      endDateInput.value = formatDateForInput(endDate);
+      const oldValue = endDateInput.value;
+      const newValue = formatDateForInput(endDate);
+      if (oldValue !== newValue) {
+        console.log(`[DateFilter] Updating endDate from ${oldValue} to ${newValue}`);
+        endDateInput.value = newValue;
+      }
     }
     
     if (endTimeInput) {
-      endTimeInput.value = formatTimeForInput(endDate);
+      const oldValue = endTimeInput.value;
+      const newValue = formatTimeForInput(endDate);
+      if (oldValue !== newValue) {
+        console.log(`[DateFilter] Updating endTime from ${oldValue} to ${newValue}`);
+        endTimeInput.value = newValue;
+      }
     }
   } catch (error) {
     console.error('Error updating date/time inputs:', error);
@@ -983,21 +935,8 @@ function setupDateFilterEvents(onFilterChange) {
     });
   }
   
-  // Apply filter button
-  const applyFilterBtn = document.getElementById('applyFilterBtn');
-  if (applyFilterBtn) {
-    applyFilterBtn.addEventListener('click', () => {
-      applyDateFilter(onFilterChange);
-    });
-  }
-  
-  // Reset filter button
-  const resetFilterBtn = document.getElementById('resetFilterBtn');
-  if (resetFilterBtn) {
-    resetFilterBtn.addEventListener('click', () => {
-      resetDateFilter(onFilterChange);
-    });
-  }
+  // Apply and reset filter buttons removed - filters now apply dynamically
+  // Functions applyDateFilter and resetDateFilter are still used elsewhere in the codebase
   
   // Period navigation buttons
   const prevPeriodBtn = document.getElementById('prevPeriodBtn');
@@ -1014,6 +953,194 @@ function setupDateFilterEvents(onFilterChange) {
       shiftDateRange(1, onFilterChange);
     });
   }
+  
+  // Date adjustment buttons
+  const dateControlButtons = document.querySelectorAll('.date-time-control-btn[data-control="date"]');
+  dateControlButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const inputId = button.getAttribute('data-input');
+      const amount = parseInt(button.getAttribute('data-amount'), 10);
+      const unit = button.getAttribute('data-unit');
+      if (inputId && !isNaN(amount) && unit) {
+        adjustDate(inputId, amount, unit, onFilterChange);
+      }
+    });
+  });
+  
+  // Time adjustment buttons
+  const timeControlButtons = document.querySelectorAll('.date-time-control-btn[data-control="time"]');
+  timeControlButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const inputId = button.getAttribute('data-input');
+      const amount = parseInt(button.getAttribute('data-amount'), 10);
+      const unit = button.getAttribute('data-unit');
+      if (inputId && !isNaN(amount) && unit) {
+        adjustTime(inputId, amount, unit, onFilterChange);
+      }
+    });
+  });
+  
+  // Quick filter button
+  const quickFilterButton = document.getElementById('quick-filter-button');
+  if (quickFilterButton) {
+    quickFilterButton.addEventListener('click', (event) => {
+      toggleQuickFilterDropdown(event);
+    });
+  }
+  
+  // Quick filter dropdown items
+  const quickFilterItems = document.querySelectorAll('.quick-filter-dropdown-item');
+  quickFilterItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const value = parseInt(item.getAttribute('data-value'), 10);
+      const unit = item.getAttribute('data-unit');
+      if (!isNaN(value) && unit) {
+        // Close the dropdown
+        document.getElementById('quickFilterDropdown').style.display = 'none';
+        // Apply the filter
+        applyQuickFilter(value, unit, onFilterChange);
+      }
+    });
+  });
+  
+  // Add event listeners for date input fields
+  const dateInputs = document.querySelectorAll('#startDate, #endDate');
+  dateInputs.forEach(input => {
+    // Track focus and blur to know when user is editing
+    input.addEventListener('focus', () => {
+      console.log(`[DateFilter] User started editing ${input.id}`);
+      window.isUserEditingDateInput = true;
+    });
+    
+    input.addEventListener('blur', () => {
+      console.log(`[DateFilter] User stopped editing ${input.id}`);
+      // Small delay to allow the change event to fire first
+      setTimeout(() => {
+        window.isUserEditingDateInput = false;
+      }, 100);
+    });
+    
+    // Use the change event to handle both manual input and date picker selection
+    input.addEventListener('change', () => {
+      // Check if we're already in an update cycle to prevent circular updates
+      if (window.isUpdatingDateFilter) return;
+      
+      console.log(`[DateFilter] Date input changed: ${input.id} to ${input.value}`);
+      
+      // Set a flag to prevent other components from overriding this change
+      window.isUpdatingDateFilter = true;
+      
+      try {
+        // Store the current value to check if it gets overridden
+        const currentValue = input.value;
+        
+        // Update the slider based on the input values
+        updateSliderFromInputs();
+        
+        // Apply the filter with the new date range
+        const startDateInput = document.getElementById('startDate');
+        const startTimeInput = document.getElementById('startTime');
+        const endDateInput = document.getElementById('endDate');
+        const endTimeInput = document.getElementById('endTime');
+        
+        if (startDateInput && startTimeInput && endDateInput && endTimeInput) {
+          const startDate = parseInputDate(startDateInput.value, startTimeInput.value);
+          const endDate = parseInputDate(endDateInput.value, endTimeInput.value);
+          
+          if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+            if (typeof onFilterChange === 'function') {
+              onFilterChange(startDate, endDate);
+            }
+          }
+        }
+        
+        // Check if the value was overridden
+        if (input.value !== currentValue) {
+          console.log(`[DateFilter] WARNING: Value was overridden from ${currentValue} to ${input.value}`);
+          // Force it back to what the user entered
+          setTimeout(() => {
+            input.value = currentValue;
+            console.log(`[DateFilter] Forced value back to ${currentValue}`);
+          }, 10);
+        }
+      } finally {
+        // Reset the flag after a delay
+        setTimeout(() => {
+          window.isUpdatingDateFilter = false;
+          console.log('[DateFilter] Reset update flag');
+        }, 200);
+      }
+    });
+  });
+  
+  // Add event listeners for time input fields
+  const timeInputs = document.querySelectorAll('#startTime, #endTime');
+  timeInputs.forEach(input => {
+    // Track focus and blur to know when user is editing
+    input.addEventListener('focus', () => {
+      console.log(`[DateFilter] User started editing ${input.id}`);
+      window.isUserEditingDateInput = true;
+    });
+    
+    input.addEventListener('blur', () => {
+      console.log(`[DateFilter] User stopped editing ${input.id}`);
+      // Small delay to allow the change event to fire first
+      setTimeout(() => {
+        window.isUserEditingDateInput = false;
+      }, 100);
+    });
+    
+    input.addEventListener('change', () => {
+      // Check if we're already in an update cycle to prevent circular updates
+      if (window.isUpdatingDateFilter) return;
+      
+      console.log(`[DateFilter] Time input changed: ${input.id} to ${input.value}`);
+      
+      // Set a flag to prevent other components from overriding this change
+      window.isUpdatingDateFilter = true;
+      
+      try {
+        // Store the current value to check if it gets overridden
+        const currentValue = input.value;
+        
+        // Update the slider based on the input values
+        updateSliderFromInputs();
+        
+        // Apply the filter with the new date range
+        const startDateInput = document.getElementById('startDate');
+        const startTimeInput = document.getElementById('startTime');
+        const endDateInput = document.getElementById('endDate');
+        const endTimeInput = document.getElementById('endTime');
+        
+        if (startDateInput && startTimeInput && endDateInput && endTimeInput) {
+          const startDate = parseInputDate(startDateInput.value, startTimeInput.value);
+          const endDate = parseInputDate(endDateInput.value, endTimeInput.value);
+          
+          if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+            if (typeof onFilterChange === 'function') {
+              onFilterChange(startDate, endDate);
+            }
+          }
+        }
+        
+        // Check if the value was overridden
+        if (input.value !== currentValue) {
+          console.log(`[DateFilter] WARNING: Value was overridden from ${currentValue} to ${input.value}`);
+          // Force it back to what the user entered
+          setTimeout(() => {
+            input.value = currentValue;
+            console.log(`[DateFilter] Forced value back to ${currentValue}`);
+          }, 10);
+        }
+      } finally {
+        // Reset the flag after a delay
+        setTimeout(() => {
+          window.isUpdatingDateFilter = false;
+          console.log('[DateFilter] Reset update flag');
+        }, 200);
+      }
+    });
+  });
 }
 
 /**
@@ -1151,6 +1278,17 @@ export function resetDateFilter(onFilterChange) {
  * @param {number} direction - Direction to shift (1 for forward, -1 for backward)
  * @param {Function} onFilterChange - Callback when filter changes
  */
+/**
+ * Normalize a date to minute precision (remove seconds and milliseconds)
+ * @param {Date} date - Date to normalize
+ * @returns {Date} - Normalized date
+ */
+function normalizeDateToMinute(date) {
+  const normalized = new Date(date);
+  normalized.setSeconds(0, 0);
+  return normalized;
+}
+
 export function shiftDateRange(direction, onFilterChange) {
   try {
     // Get current date range
@@ -1166,15 +1304,32 @@ export function shiftDateRange(direction, onFilterChange) {
       return;
     }
     
-    const startDate = new Date(startTimestamp);
-    const endDate = new Date(endTimestamp);
+    // Create dates and normalize to minute precision
+    const startDate = normalizeDateToMinute(new Date(startTimestamp));
+    const endDate = normalizeDateToMinute(new Date(endTimestamp));
     
-    // Calculate period duration
-    const periodDuration = endDate.getTime() - startDate.getTime();
+    // Calculate the actual duration in milliseconds
+    const duration = endDate.getTime() - startDate.getTime();
     
-    // Shift by one period
-    const newStartDate = new Date(startDate.getTime() + direction * periodDuration);
-    const newEndDate = new Date(endDate.getTime() + direction * periodDuration);
+    // Normalize the duration to standard time units to prevent small shifts
+    let normalizedDuration = duration;
+    
+    // Determine the closest standard time unit (minute, hour, day)
+    if (duration < 3600000) { // Less than 1 hour
+      // Round to the nearest minute
+      normalizedDuration = Math.round(duration / 60000) * 60000;
+    } else if (duration < 86400000) { // Less than 1 day
+      // Round to the nearest hour
+      normalizedDuration = Math.round(duration / 3600000) * 3600000;
+    } else {
+      // Round to the nearest day
+      normalizedDuration = Math.round(duration / 86400000) * 86400000;
+    }
+    
+    // Shift by the normalized duration
+    // Shift both dates by the same amount to maintain the same timeframe width
+    const newStartDate = normalizeDateToMinute(new Date(startDate.getTime() + direction * normalizedDuration));
+    const newEndDate = normalizeDateToMinute(new Date(endDate.getTime() + direction * normalizedDuration));
     
     // Update UI
     updateSlider(newStartDate, newEndDate);
@@ -1189,8 +1344,6 @@ export function shiftDateRange(direction, onFilterChange) {
   }
 }
 
-
-
 /**
  * Apply quick filter
  * @param {number} value - Filter value
@@ -1199,8 +1352,12 @@ export function shiftDateRange(direction, onFilterChange) {
  */
 export function applyQuickFilter(value, unit, onFilterChange) {
   try {
-    // Calculate new date range
-    const now = new Date();
+    // Calculate new date range with normalized time (no milliseconds/seconds)
+    let now = new Date();
+    // Normalize to minute precision
+    now = normalizeDateToMinute(now);
+    
+    // Create a new start date from the normalized now date
     const startDate = new Date(now);
     
     // Adjust start date based on filter
@@ -1219,19 +1376,31 @@ export function applyQuickFilter(value, unit, onFilterChange) {
         return;
     }
     
+    // Normalize the start date again after adjustments
+    const normalizedStartDate = normalizeDateToMinute(startDate);
+    
+    // Log normalized dates for debugging
+    console.log('Normalized date range:', {
+      startDate: normalizedStartDate.toISOString(),
+      endDate: now.toISOString(),
+      duration: now.getTime() - normalizedStartDate.getTime()
+    });
+    
     // Update UI
-    updateSlider(startDate, now);
-    updateDateTimeInputs(startDate, now);
+    updateSlider(normalizedStartDate, now);
+    updateDateTimeInputs(normalizedStartDate, now);
     updateTimeMarkers();
     
     // Call filter change callback
     if (typeof onFilterChange === 'function') {
-      onFilterChange(startDate, now);
+      onFilterChange(normalizedStartDate, now);
     }
   } catch (error) {
     console.error('Error applying quick filter:', error);
   }
 }
+
+// No longer need to export to global scope as we're using proper event listeners
 
 /**
  * Toggle quick filter dropdown
@@ -1242,34 +1411,211 @@ export function toggleQuickFilterDropdown(event) {
     const dropdown = document.getElementById('quickFilterDropdown');
     if (!dropdown) return;
     
-    // Toggle dropdown visibility
-    if (dropdown.style.display === 'block') {
-      dropdown.style.display = 'none';
+    // Get the button that was clicked
+    let button = null;
+    if (event && event.target) {
+      button = event.target.closest('#quick-filter-button') || document.getElementById('quick-filter-button');
     } else {
-      dropdown.style.display = 'block';
-      
-      // Position dropdown
-      if (event && event.target) {
-        const button = event.target.closest('button');
-        if (button) {
-          const rect = button.getBoundingClientRect();
-          dropdown.style.top = (rect.bottom + window.scrollY) + 'px';
-          dropdown.style.right = (window.innerWidth - rect.right) + 'px';
-        }
-      }
+      button = document.getElementById('quick-filter-button');
     }
     
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function closeDropdown(e) {
+    if (!button) return;
+    
+    // Store the original parent for later use
+    if (!dropdown.originalParent) {
+      dropdown.originalParent = dropdown.parentNode;
+    }
+    
+    // Toggle dropdown visibility
+    if (dropdown.style.display === 'block') {
+      // Remove active class from button
+      button.classList.remove('active');
+      
+      // Use the closeDropdown method to ensure consistent behavior
+      if (typeof dropdown.closeDropdown === 'function') {
+        dropdown.closeDropdown();
+      } else {
+        // Fallback if closeDropdown method is not defined
+        dropdown.style.display = 'none';
+        
+        // Remove event listeners when closing the dropdown
+        if (dropdown.scrollListeners) {
+          dropdown.removeEventListener('scroll', dropdown.scrollListeners.preventScroll);
+          dropdown.removeEventListener('wheel', dropdown.scrollListeners.preventWheel, { passive: false });
+          dropdown.removeEventListener('touchstart', dropdown.scrollListeners.preventScroll);
+          dropdown.removeEventListener('touchmove', dropdown.scrollListeners.preventScroll);
+          dropdown.scrollListeners = null;
+        }
+        
+        // Unregister from the accordion
+        unregisterDropdownFromAccordion('quickFilterDropdown');
+        
+        // Return the dropdown to its original parent when closed
+        if (dropdown.originalParent && dropdown.parentNode === document.body) {
+          dropdown.originalParent.appendChild(dropdown);
+        }
+      }
+    } else {
+      // Add active class to button
+      button.classList.add('active');
+      
+      // Close any other open dropdowns first
+      const openDropdowns = document.querySelectorAll('.quick-filter-dropdown-content');
+      openDropdowns.forEach(item => {
+        if (item !== dropdown) item.style.display = 'none';
+      });
+      
+      // Append the dropdown to the body to avoid any clipping issues
+      document.body.appendChild(dropdown);
+      
+      // Position the dropdown relative to the button
+      const buttonRect = button.getBoundingClientRect();
+      
+      // Set the position of the dropdown
+      dropdown.style.position = 'absolute';
+      dropdown.style.top = (buttonRect.bottom + window.scrollY + 5) + 'px';
+      dropdown.style.left = (buttonRect.left + window.scrollX) + 'px';
+      dropdown.style.width = '200px';
+      dropdown.style.padding = '12px';
+      dropdown.style.maxHeight = '400px';
+      // Use theme variables instead of hardcoded colors
+      const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+      dropdown.style.backgroundColor = isDarkMode ? 'var(--card-bg-color)' : 'white';
+      dropdown.style.border = `1px solid ${isDarkMode ? 'var(--border-color)' : '#ccc'}`;
+      dropdown.style.borderRadius = '4px';
+      dropdown.style.boxShadow = isDarkMode ? '0 2px 10px rgba(0, 0, 0, 0.3)' : '0 2px 5px rgba(0,0,0,0.2)';
+      dropdown.style.zIndex = '9999';
+      dropdown.style.display = 'block';
+      
+      // Make sure we have a dedicated scrollable container for the items
+      let quickFilterList = dropdown.querySelector('.quick-filter-list');
+      if (!quickFilterList) {
+        // Create a dedicated scrollable container for the filter items
+        quickFilterList = document.createElement('div');
+        quickFilterList.className = 'quick-filter-list';
+        
+        // Move all existing items into the scrollable container
+        const items = dropdown.querySelectorAll('.quick-filter-dropdown-item');
+        items.forEach(item => {
+          quickFilterList.appendChild(item);
+        });
+        
+        // Add the scrollable container to the dropdown
+        dropdown.appendChild(quickFilterList);
+      }
+      
+      // Apply explicit styling to the scrollable container
+      quickFilterList.style.maxHeight = '300px';
+      quickFilterList.style.overflowY = 'auto !important';
+      quickFilterList.style.overflowX = 'hidden !important';
+      quickFilterList.style.display = 'block !important';
+      quickFilterList.style.marginBottom = '8px';
+      
+      // Prevent scroll events from propagating to the main page
+      const preventScroll = function(e) {
+        e.stopPropagation();
+      };
+      
+      // Prevent wheel events from propagating
+      const preventWheel = function(e) {
+        // Just stop propagation without preventing default behavior
+        e.stopPropagation();
+      };
+      
+      // Close dropdown when accordion filter is closed
+      const checkAccordionState = function() {
+        // Check if accordion filter is expanded
+        const accordionFilter = document.getElementById('accordionFilter');
+        if (accordionFilter && !accordionFilter.classList.contains('expanded')) {
+          // If accordion is closed and dropdown is open, close the dropdown
+          if (dropdown.style.display === 'block') {
+            // Close the dropdown directly
+            dropdown.style.display = 'none';
+            
+            // Remove event listeners
+            dropdown.removeEventListener('scroll', dropdown.scrollListeners.preventScroll);
+            dropdown.removeEventListener('wheel', dropdown.scrollListeners.preventWheel, { passive: false });
+            dropdown.removeEventListener('touchstart', dropdown.scrollListeners.preventScroll);
+            dropdown.removeEventListener('touchmove', dropdown.scrollListeners.preventScroll);
+            document.removeEventListener('click', dropdown.scrollListeners.checkAccordionState);
+            dropdown.scrollListeners = null;
+            
+            // Return the dropdown to its original parent
+            if (dropdown.originalParent && dropdown.parentNode === document.body) {
+              dropdown.originalParent.appendChild(dropdown);
+            }
+          }
+        }
+      };
+      
+      // Add event listeners to prevent scroll propagation
+      dropdown.addEventListener('scroll', preventScroll);
+      dropdown.addEventListener('wheel', preventWheel, { passive: false });
+      dropdown.addEventListener('touchstart', preventScroll);
+      dropdown.addEventListener('touchmove', preventScroll);
+      
+      // Add a method to close the dropdown that can be called by the UI Manager
+      dropdown.closeDropdown = function() {
+        if (dropdown.style.display === 'block') {
+          dropdown.style.display = 'none';
+          
+          // Remove active class from the button
+          const button = document.getElementById('quick-filter-button');
+          if (button) button.classList.remove('active');
+          
+          // Clean up event listeners
+          if (dropdown.scrollListeners) {
+            dropdown.removeEventListener('scroll', dropdown.scrollListeners.preventScroll);
+            dropdown.removeEventListener('wheel', dropdown.scrollListeners.preventWheel, { passive: false });
+            dropdown.removeEventListener('touchstart', dropdown.scrollListeners.preventScroll);
+            dropdown.removeEventListener('touchmove', dropdown.scrollListeners.preventScroll);
+            dropdown.scrollListeners = null;
+          }
+          
+          // Return the dropdown to its original parent
+          if (dropdown.originalParent && dropdown.parentNode === document.body) {
+            dropdown.originalParent.appendChild(dropdown);
+          }
+          
+          // Unregister from the accordion
+          unregisterDropdownFromAccordion('quickFilterDropdown');
+        }
+      };
+      
+      // Register the dropdown with the accordion filter through the UI Manager
+      registerDropdownWithAccordion('quickFilterDropdown');
+      
+      // Store the event listeners for later removal
+      dropdown.scrollListeners = {
+        preventScroll,
+        preventWheel
+      };
+    }
+    
+    // Remove any existing event listeners to prevent duplicates
+    document.removeEventListener('click', window.closeQuickFilterDropdown);
+    
+    // Define the close function and store it on the window object for later removal
+    window.closeQuickFilterDropdown = function(e) {
       if (!e.target.closest('#quick-filter-button') && !e.target.closest('#quickFilterDropdown')) {
         dropdown.style.display = 'none';
-        document.removeEventListener('click', closeDropdown);
+        document.removeEventListener('click', window.closeQuickFilterDropdown);
+        
+        // Remove active class from the button when clicking outside
+        const button = document.getElementById('quick-filter-button');
+        if (button) button.classList.remove('active');
       }
-    });
+    };
+    
+    // Add the event listener with a slight delay to prevent immediate closing
+    setTimeout(() => {
+      document.addEventListener('click', window.closeQuickFilterDropdown);
+    }, 100);
     
     // Prevent event from bubbling up
     if (event) {
       event.stopPropagation();
+      event.preventDefault();
     }
   } catch (error) {
     console.error('Error toggling quick filter dropdown:', error);

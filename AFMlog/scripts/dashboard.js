@@ -3,20 +3,31 @@
  * Handles component initialization, data loading, and event handling
  */
 import { formatDate, formatTime, formatDateTime, debounce, getUnitText, getChartColor } from './utils.js';
+import { updateCharts as updateChartsModule, getAggregationInterval as getAggregationIntervalModule } from '../components/charts/chartManager.js';
+import { toggleCard, initUI, toggleAccordionFilter, updateUI as updateUIFromManager, updateSummary as updateSummaryFromManager, updateTables as updateTablesFromManager, updateLastUpdateTime as updateLastUpdateTimeFromManager, updateFilterDisplay as updateFilterDisplayFromManager } from './uiManager.js';
 import { filterDataByDate, adjustDate, adjustTime } from './dateUtils.js';
 import { processStatusData, processErrorData, processPatternData, processInputData, setKnownErrorPatterns, getKnownErrorPatterns, setPatternMatchesData } from './dataProcessors.js';
+import { filterByErrorType as filterByErrorTypeModule, filterByErrorTypes, dispatchErrorTypeFilter, dispatchErrorFilterChanged, initErrorFilter, getUniqueErrorTypes, getAllErrorTypes, getSelectedErrorTypes, toggleErrorType, selectAllErrorTypes, clearErrorTypeSelection } from '../components/filters/index.js';
 import { loadCSV, loadAllDataFiles, loadPatternMatchesData, getDateRangeFromStatusData } from './dataLoader.js';
 import { initTheme, toggleTheme, setupThemeEventListeners } from './themeManager.js';
-import { createErrorsByHourChart, createErrorStackedLine, createInputChart, createThroughputChart, createErrorRateChart, createErrorTrendChart, createErrorsByWeekdayChart, createErrorTypePieChart } from '../components/charts/index.js';
-import { updateTopErrorsList, updateErrorTable, updateHealthWidget, calculateErrorRate, calculateThroughput, updateKpiGrid, createKpiGrid, initDateFilter, applyDateFilter, resetDateFilter, applyQuickFilter, toggleQuickFilterDropdown, shiftDateRange } from '../components/widgets/index.js';
-import { initDataTables, searchStatus, searchErrorLog, searchPatterns, searchInputs, changePage } from '../components/widgets/dataTables.js';
+import { initAutoRefresh, toggleAutoRefresh, startAutoRefresh, stopAutoRefresh, isAutoRefreshEnabled, setRefreshInterval, updateLastUpdateTime as updateLastUpdateTimeFromModule } from './autoRefresh.js';
+import { createErrorsByHourChart, createErrorStackedLine, createInputChart, createThroughputChart, createErrorRateChart, createErrorTrendChart, createErrorsByWeekdayChart, createErrorTypePieChart, createErrorHeatmapChart, initHealthGauge } from '../components/charts/index.js';
+import { updateTopErrorsList, updateErrorTable, updateHealthWidget, updateKpiGrid, createKpiGrid, initDateFilter, applyDateFilter, resetDateFilter, applyQuickFilter, toggleQuickFilterDropdown, closeQuickFilterDropdown, shiftDateRange, initErrorTypeFilter, toggleErrorTypeDropdown, closeErrorTypeDropdown, updateErrorTypeFilterUI, initQuickFilter, initDataTables, searchStatus, searchErrorLog, searchPatterns, searchInputs, changePage, setupSearchButtonListeners } from '../components/widgets/index.js';
+import { calculateKPIs, calculateErrorRate, calculateThroughput, calculateHealthScore, getErrorRateStatus } from '../components/calculations/index.js';
 import Header from '../components/Header.js';
 import Footer from '../components/Footer.js';
 import Sidebar from '../components/Sidebar.js';
 import WidgetA from '../components/WidgetA.js';
+import SummaryCard from '../components/SummaryCard.js';
+
+// Make functions available globally for inline handlers
+window.toggleAccordionFilter = toggleAccordionFilter;
+window.toggleCard = toggleCard;
+
+// Re-export functions that are imported elsewhere
+export { toggleCard };
 
 // Global variables
-let autoRefreshInterval = null;
 let statusData = [];
 let errorData = [];
 let patternData = [];
@@ -25,6 +36,9 @@ let filteredStatusData = [];
 let filteredErrorData = [];
 let filteredPatternData = []; // Initialize filteredPatternData
 let filteredInputData = []; // Initialize filteredInputData
+
+// Flag to prevent circular updates
+let isUpdatingDateFilter = false;
 
 // Store all data globally for table searching
 window.allData = {
@@ -39,6 +53,7 @@ let header = null;
 let footer = null;
 let sidebar = null;
 let widgetA = null;
+let summaryCard = null;
 
 // Initialize the dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,7 +61,31 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Expose key functions globally for the wrapper functions
   window.applyFilters = applyFilters;
-  window.updateUI = updateUI;
+  // Use the modular updateUI function from uiManager.js for global access
+  window.updateUI = (params) => updateUIFromManager({
+    filteredStatusData,
+    filteredErrorData,
+    filteredPatternData,
+    errorData,
+    startDate,
+    endDate,
+    calculateKPIs,
+    updateHealthWidget,
+    debugErrorCategorization,
+    updateCharts: updateChartsModule,
+    widgetA,
+    summaryCard,
+    updateKpiGrid,
+    getKnownErrorPatterns,
+    getChartColor,
+    formatDateTime,
+    updateErrorTable,
+    updateTopErrorsList
+  });
+  
+  // Expose auto-refresh functions globally
+  window.setRefreshInterval = setRefreshInterval;
+  window.toggleAutoRefresh = toggleAutoRefresh;
   
   // Expose search functions globally
   window.searchStatus = searchStatus;
@@ -54,6 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
   window.searchPatterns = searchPatterns;
   window.searchInputs = searchInputs;
   window.changePage = changePage;
+  
+  // Expose showTab function globally for navigation links
+  window.showTab = showTab;
 });
 
 /**
@@ -62,11 +104,16 @@ document.addEventListener('DOMContentLoaded', () => {
 export function initDashboard() {
   console.log('Initializing AFM Dashboard...');
   
-  // Initialize components
-  initComponents();
+  // Initialize components (except date filter)
+  initComponentsExceptDateFilter();
   
   // Initialize theme
   initTheme();
+  
+  // Initialize auto-refresh module with loadAllData as the refresh callback
+  // Don't pass updateLastUpdateTime as a callback to avoid circular references
+  // Ensure the DOM is fully loaded before initializing auto-refresh
+  initAutoRefresh(loadAllData, null);
   
   // Setup event listeners
   setupEventListeners();
@@ -77,8 +124,7 @@ export function initDashboard() {
       // Load all data
       loadAllData();
       
-      // Note: Default date range is now set during loadAllData
-      // Date range slider is initialized within initDateFilter
+      // Note: Date filter will be initialized after data is loaded in the loadAllData function
       
       // Start auto-refresh by default
       startAutoRefresh();
@@ -91,6 +137,48 @@ export function initDashboard() {
     .catch(error => {
       console.error('Error initializing dashboard:', error);
     });
+}
+
+/**
+ * Initialize all components except date filter
+ */
+function initComponentsExceptDateFilter() {
+  // Initialize header
+  header = new Header('header-container');
+  
+  // Initialize footer
+  footer = new Footer('footer-container');
+  
+  // Initialize sidebar
+  sidebar = new Sidebar('sidebar-container');
+  
+  // Initialize widget A
+  widgetA = initHealthGauge();
+  
+  // Initialize summary card
+  summaryCard = new SummaryCard('summary-container');
+  
+  // Initialize KPI grid
+  const kpiGridContainer = document.getElementById('kpi-grid-container');
+  if (kpiGridContainer) {
+    createKpiGrid(kpiGridContainer);
+  }
+  
+  // Note: Default date range is now set during loadAllData based on actual data
+  // Initialize global date range variables to null (will be set during data loading)
+  if (!startDate || !endDate) {
+    startDate = null;
+    endDate = null;
+    console.log('Date range will be set from actual data during loading');
+  }
+  
+  // Initialize UI components (card toggling, etc.)
+  initUI();
+  console.log('UI components initialized');
+  
+  // Initialize search button listeners
+  setupSearchButtonListeners();
+  console.log('Search button listeners initialized');
 }
 
 /**
@@ -107,7 +195,10 @@ function initComponents() {
   sidebar = new Sidebar('sidebar-container');
   
   // Initialize widget A
-  widgetA = new WidgetA('healthCard');
+  widgetA = initHealthGauge();
+  
+  // Initialize summary card
+  summaryCard = new SummaryCard('summary-container');
   
   // Initialize KPI grid
   const kpiGridContainer = document.getElementById('kpi-grid-container');
@@ -133,6 +224,29 @@ function initComponents() {
       updateUI();
     }
   });
+  
+  // Initialize error type filter
+  console.log('About to initialize error type filter from dashboard.js');
+  initErrorTypeFilter({
+    container: document.querySelector('.filter-elements-container')
+  });
+  console.log('Error type filter initialization completed');
+  
+  // Initialize quick filter
+  console.log('Initializing quick filter component');
+  initQuickFilter({
+    container: document.querySelector('.filter-elements-container'),
+    onFilterChange: (start, end) => {
+      startDate = start;
+      endDate = end;
+      applyFilters();
+      updateUI();
+    }
+  });
+  console.log('Quick filter initialization completed');
+  
+  // Initialize UI components (card toggling, etc.)
+  initUI();
 }
 
 // Theme initialization moved to themeManager.js
@@ -141,8 +255,69 @@ function initComponents() {
  * Setup global event listeners
  */
 function setupEventListeners() {
+  // Add wheel event listener to close accordion filter when scrolling down
+  window.addEventListener('wheel', function(e) {
+    const accordionFilter = document.getElementById('accordionFilter');
+    if (!accordionFilter || !accordionFilter.classList.contains('expanded')) {
+      return; // Only proceed if the accordion is expanded
+    }
+    
+    // If scrolling down (positive deltaY)
+    if (e.deltaY > 0) {
+      // User is scrolling down, close the accordion
+      toggleAccordionFilter();
+      
+      // Also close any open portal dropdowns
+      if (window.errorTypeDropdownPortal) {
+        window.errorTypeDropdownPortal.closeDropdown();
+      }
+      if (window.quickFilterDropdownPortal) {
+        window.quickFilterDropdownPortal.closeDropdown();
+      }
+    }
+  }, { passive: true }); // Use passive event listener for better performance
+  
+  // Also handle touch events for mobile devices
+  let touchStartY = 0;
+  
+  window.addEventListener('touchstart', function(e) {
+    const accordionFilter = document.getElementById('accordionFilter');
+    if (!accordionFilter || !accordionFilter.classList.contains('expanded')) {
+      return; // Only proceed if the accordion is expanded
+    }
+    
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  
+  window.addEventListener('touchmove', function(e) {
+    const accordionFilter = document.getElementById('accordionFilter');
+    if (!accordionFilter || !accordionFilter.classList.contains('expanded')) {
+      return; // Only proceed if the accordion is expanded
+    }
+    
+    const touchY = e.touches[0].clientY;
+    const touchDiff = touchStartY - touchY;
+    
+    // If scrolling down (positive diff) and past threshold
+    if (touchDiff > 10) { // 10px threshold for touch movement
+      // User is scrolling down, close the accordion
+      toggleAccordionFilter();
+      
+      // Also close any open portal dropdowns
+      if (window.errorTypeDropdownPortal) {
+        window.errorTypeDropdownPortal.closeDropdown();
+      }
+      if (window.quickFilterDropdownPortal) {
+        window.quickFilterDropdownPortal.closeDropdown();
+      }
+    }
+  }, { passive: true });
+  
   // Setup theme-related event listeners
   setupThemeEventListeners();
+  
+  // Auto-refresh toggle
+  const autoRefreshToggle = document.getElementById('autoRefreshToggle');
   
   // Auto-refresh toggle event
   document.addEventListener('auto-refresh-toggle', (e) => {
@@ -152,6 +327,99 @@ function setupEventListeners() {
   // Tab change event
   document.addEventListener('tab-change', (e) => {
     showTab(e.detail.tabId);
+  });
+  
+  // Quick filter applied event
+  document.addEventListener('quick-filter-applied', (e) => {
+    console.log('[Dashboard] Quick filter applied event received:', e.detail);
+    if (e.detail && e.detail.startDate && e.detail.endDate && !isUpdatingDateFilter) {
+      // Set flag to prevent circular updates
+      isUpdatingDateFilter = true;
+      
+      try {
+        // Update the global date range
+        startDate = e.detail.startDate;
+        endDate = e.detail.endDate;
+        
+        // Update the date filter UI to reflect the new date range
+        const dateFilterInputs = document.querySelectorAll('#startDate, #startTime, #endDate, #endTime');
+        if (dateFilterInputs.length > 0) {
+          document.getElementById('startDate').value = formatDate(startDate);
+          document.getElementById('startTime').value = formatTime(startDate);
+          document.getElementById('endDate').value = formatDate(endDate);
+          document.getElementById('endTime').value = formatTime(endDate);
+        }
+        
+        // Update the slider to reflect the new date range
+        const slider = document.getElementById('dateRangeSlider');
+        if (slider && slider.noUiSlider) {
+          console.log('[Dashboard] Updating slider with new date range:', startDate, endDate);
+          // Use silent update to prevent triggering slider events
+          slider.noUiSlider.set([startDate.getTime(), endDate.getTime()], false);
+          
+          // Update the duration tooltip manually
+          const durationTooltip = document.getElementById('sliderDurationTooltip');
+          if (durationTooltip) {
+            // Calculate duration in milliseconds
+            const durationMs = endDate.getTime() - startDate.getTime();
+            
+            // Format the duration text
+            let durationText = '';
+            const minutes = Math.floor(durationMs / (1000 * 60));
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) {
+              durationText = `${days} Tag${days !== 1 ? 'e' : ''}`;
+            } else if (hours > 0) {
+              durationText = `${hours} Stunde${hours !== 1 ? 'n' : ''}`;
+            } else {
+              durationText = `${minutes} Minute${minutes !== 1 ? 'n' : ''}`;
+            }
+            
+            durationTooltip.textContent = durationText;
+            
+            // Calculate the center position of the selected range as a percentage
+            const values = slider.noUiSlider.get();
+            const startVal = parseFloat(values[0]);
+            const endVal = parseFloat(values[1]);
+            
+            // Get the slider range
+            const range = slider.noUiSlider.options.range;
+            const min = range.min;
+            const max = range.max;
+            const totalRange = max - min;
+            
+            // Calculate center position
+            const center = startVal + (endVal - startVal) / 2;
+            const centerPercentage = ((center - min) / totalRange) * 100;
+            
+            // Update tooltip position to center it over the selected range
+            console.log(`[Dashboard] Updating tooltip position to ${centerPercentage}%`);
+            durationTooltip.style.left = centerPercentage + '%';
+            durationTooltip.style.transform = 'translateX(-50%)';
+            
+            // Also update the timeframe display
+            const timeframeDisplay = document.getElementById('timeframeDuration');
+            if (timeframeDisplay) {
+              timeframeDisplay.textContent = durationText;
+            }
+          }
+        }
+        
+        // Apply the filters with the new date range
+        applyFilters();
+        
+        // Update the timeframe display
+        updateFilterDisplay();
+      } finally {
+        // Reset the flag after a short delay to ensure all events have completed
+        setTimeout(() => {
+          isUpdatingDateFilter = false;
+          console.log('[Dashboard] Date filter update complete');
+        }, 100);
+      }
+    }
   });
   
   // Refresh data event
@@ -164,9 +432,17 @@ function setupEventListeners() {
     applyQuickFilter(e.detail.amount, e.detail.unit);
   });
   
-  // Error type filter event
+  // Error type filter event (legacy single-type filter)
   document.addEventListener('error-type-filter', (e) => {
+    // Use the wrapper function for backward compatibility
     filterByErrorType(e.detail.type);
+  });
+  
+  // Multi-select error filter event
+  document.addEventListener('error-filter-changed', () => {
+    // When error filters change, reapply all filters and update UI
+    applyFilters();
+    updateUI();
   });
   
   // Window resize event for responsive adjustments
@@ -177,61 +453,7 @@ function setupEventListeners() {
 }
 
 // Theme toggling moved to themeManager.js
-
-/**
- * Toggle auto-refresh
- * @param {boolean} enabled - Whether auto-refresh should be enabled
- */
-export function toggleAutoRefresh(enabled) {
-  if (enabled) {
-    startAutoRefresh();
-  } else {
-    stopAutoRefresh();
-  }
-}
-
-/**
- * Start auto-refresh interval
- */
-function startAutoRefresh() {
-  // Clear existing interval if any
-  if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval);
-  }
-  
-  // Set new interval (5 minutes)
-  autoRefreshInterval = setInterval(() => {
-    console.log('Auto-refresh triggered');
-    loadAllData();
-    // Update the last update time immediately when auto-refresh occurs
-    updateLastUpdateTime();
-  }, 300000); // 5 minutes in milliseconds
-  
-  // Update header toggle
-  const headerElement = document.querySelector('afm-header');
-  if (headerElement) {
-    headerElement.setAutoRefreshToggle(true);
-  }
-  
-  console.log('Auto-refresh started with 5-minute interval');
-}
-
-/**
- * Stop auto-refresh interval
- */
-function stopAutoRefresh() {
-  if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval);
-    autoRefreshInterval = null;
-    console.log('Auto-refresh stopped');
-  }
-  
-  // Update header toggle
-  const headerElement = document.querySelector('afm-header');
-  if (headerElement) {
-    headerElement.setAutoRefreshToggle(false);
-  }
-}
+// Auto-refresh functionality moved to autoRefresh.js
 
 /**
  * Show the specified tab
@@ -261,11 +483,54 @@ export function showTab(tabId) {
     sidebarElement.setActiveTab(tabId);
   }
   
-  // Update charts if needed
-  updateCharts();
+  // Force chart reinitialization by clearing existing chart instances
+  // This ensures proper axis scaling when switching tabs
+  if (window.inputChart && typeof window.inputChart.destroy === 'function') {
+    window.inputChart.destroy();
+    window.inputChart = null;
+  }
+  if (window.throughputChart && typeof window.throughputChart.destroy === 'function') {
+    window.throughputChart.destroy();
+    window.throughputChart = null;
+  }
+  if (window.errorRateChart && typeof window.errorRateChart.destroy === 'function') {
+    window.errorRateChart.destroy();
+    window.errorRateChart = null;
+  }
+  if (window.errorTrendChart && typeof window.errorTrendChart.destroy === 'function') {
+    window.errorTrendChart.destroy();
+    window.errorTrendChart = null;
+  }
+  if (window.errorsByHourChart && typeof window.errorsByHourChart.destroy === 'function') {
+    window.errorsByHourChart.destroy();
+    window.errorsByHourChart = null;
+  }
+  if (window.errorsByWeekdayChart && typeof window.errorsByWeekdayChart.destroy === 'function') {
+    window.errorsByWeekdayChart.destroy();
+    window.errorsByWeekdayChart = null;
+  }
+  if (window.errorTypePieChart && typeof window.errorTypePieChart.destroy === 'function') {
+    window.errorTypePieChart.destroy();
+    window.errorTypePieChart = null;
+  }
+  if (window.errorStackedLineChart && typeof window.errorStackedLineChart.destroy === 'function') {
+    window.errorStackedLineChart.destroy();
+    window.errorStackedLineChart = null;
+  }
+  
+  // Use a slight delay to ensure DOM is ready before recreating charts
+  setTimeout(() => {
+    // Update charts with current data
+    updateCharts();
+    
+    // Log tab change for debugging
+    console.log(`Tab changed to ${tabId}, charts reinitialized`);
+  }, 50);
 }
 
-// Global variable for pattern matches data reference
+/**
+ * Global variable for pattern matches data reference
+ */
 let patternMatchesData = [];
 
 /**
@@ -343,6 +608,25 @@ function loadAllData() {
       patternData = processPatternData(patternMatchesData);
       inputData = processInputData(inputResults);
       
+      // Initialize error filter with unique error types
+      const uniqueErrorTypes = getUniqueErrorTypes(errorData);
+      console.log('Unique error types:', uniqueErrorTypes);
+      initErrorFilter(uniqueErrorTypes);
+      
+      // Make error filter functions available globally for debugging
+      window.errorFilter = {
+        getAllErrorTypes,
+        getSelectedErrorTypes,
+        toggleErrorType,
+        selectAllErrorTypes,
+        clearErrorTypeSelection
+      };
+      
+      // Update the error type filter UI with new error types
+      if (window.updateErrorTypeFilterUI) {
+        window.updateErrorTypeFilterUI();
+      }
+      
       // Store data globally for table searching
       window.allData = {
         statusData: statusResults,
@@ -384,6 +668,17 @@ function loadAllData() {
         dataMaxDate: maxDate.toISOString()
       });
       
+      // Initialize date filter
+      initDateFilter({
+        container: document.getElementById('filterContent'),
+        onFilterChange: (start, end) => {
+          startDate = start;
+          endDate = end;
+          applyFilters();
+          updateUI();
+        }
+      });
+      
       // Apply any active filters
       applyFilters();
       
@@ -393,28 +688,6 @@ function loadAllData() {
         filteredPatternData: filteredPatternData.length,
         filteredInputData: filteredInputData.length
       });
-      
-      // Re-initialize the date filter with the new date range
-      try {
-        const dateFilterContainer = document.getElementById('filterContent');
-        if (dateFilterContainer) {
-          // Remove existing date filter UI
-          dateFilterContainer.innerHTML = '';
-          
-          // Re-initialize date filter with current date range
-          initDateFilter({
-            container: dateFilterContainer,
-            onFilterChange: (start, end) => {
-              startDate = start;
-              endDate = end;
-              applyFilters();
-              updateUI();
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error reinitializing date filter:', error);
-      }
       
       // Update the UI with the processed data
       updateUI();
@@ -458,17 +731,43 @@ function loadAllData() {
  * Apply all active filters to the data
  */
 export function applyFilters() {
-  // Apply date filter
+  // Apply date filter first (primary filter)
   filteredStatusData = filterDataByDate(statusData, startDate, endDate);
   filteredErrorData = filterDataByDate(errorData, startDate, endDate);
   filteredPatternData = filterDataByDate(patternData, startDate, endDate);
   filteredInputData = filterDataByDate(inputData, startDate, endDate);
+  
+  // Apply error type filter (secondary filter, only affects error data)
+  filteredErrorData = filterByErrorTypes(filteredErrorData);
+  
+  // Expose filtered data as global variables for other components to use
+  window.filteredStatusData = filteredStatusData;
+  window.filteredErrorData = filteredErrorData;
+  window.filteredPatternData = filteredPatternData;
+  window.filteredInputData = filteredInputData;
   
   console.log('Filtered data:', {
     filteredStatusData: filteredStatusData.length,
     filteredErrorData: filteredErrorData.length,
     filteredPatternData: filteredPatternData.length,
     filteredInputData: filteredInputData.length
+  });
+  
+  // Dispatch event to notify components that filters have been applied
+  document.dispatchEvent(new CustomEvent('filter-applied', {
+    detail: {
+      startDate,
+      endDate,
+      errorTypes: getSelectedErrorTypes()
+    }
+  }));
+  
+  // Update tables directly
+  updateTables({
+    filteredStatusData,
+    filteredErrorData,
+    filteredPatternData,
+    filteredInputData
   });
   
   // Extract last run time within the selected timeframe
@@ -507,8 +806,6 @@ export function applyFilters() {
   } else {
     window.lastBackendRunTime = null;
   }
-  
-  // Apply other filters as needed
 }
 
 // filterDataByDate function is now imported from dateUtils.js
@@ -551,21 +848,11 @@ export function applyFilters() {
 // adjustTime function moved to dateUtils.js
 
 /**
- * Toggle filter visibility
+ * Legacy toggle filter function (kept for backward compatibility)
  */
 function toggleFilter() {
-  const filterContent = document.getElementById('filterContent');
-  const toggleBtn = document.getElementById('toggleFilterBtn');
-  
-  if (!filterContent || !toggleBtn) return;
-  
-  if (filterContent.style.display === 'none') {
-    filterContent.style.display = 'flex';
-    toggleBtn.querySelector('i').textContent = 'expand_less';
-  } else {
-    filterContent.style.display = 'none';
-    toggleBtn.querySelector('i').textContent = 'expand_more';
-  }
+  // Call the new accordion filter function instead
+  toggleAccordionFilter();
 }
 
 /**
@@ -820,16 +1107,11 @@ function makeTooltipDraggable(tooltip, sliderElement) {
 /**
  * Filter data by error type
  * @param {string} type - Error type to filter by
+ * @deprecated Use the modular filterByErrorType from components/filters/errorFilter.js instead
  */
 export function filterByErrorType(type) {
-  // Apply error type filter
-  if (type === 'all') {
-    // No additional filtering needed
-  } else {
-    filteredErrorData = filteredErrorData.filter(item => {
-      return item.type === type;
-    });
-  }
+  // Use the modular implementation from errorFilter.js
+  filteredErrorData = filterByErrorTypeModule(filteredErrorData, type);
   
   // Update UI
   updateUI();
@@ -857,193 +1139,27 @@ function debugErrorCategorization() {
 
 /**
  * Update the UI with current data
+ * @deprecated This function is now just a wrapper for the modular updateUIFromManager function from uiManager.js
  */
 export function updateUI() {
-  // Calculate KPIs
-  const kpis = calculateKPIs();
-  
-  // Update summary component
-  updateSummary(kpis);
-  
-  // Update health widget
-  updateHealthWidget(kpis, widgetA);
-  
-  // Debug error categorization
-  debugErrorCategorization();
-  
-  // Update charts
-  updateCharts();
-  
-  // Update tables
-  updateTables();
+  // Call the global window.updateUI function which uses the modular implementation
+  window.updateUI();
 }
 
-/**
- * Calculate key performance indicators
- * @returns {Object} - Object containing KPIs
- */
-function calculateKPIs() {
-  // Get the last row of status data to get the current totals
-  let totalFiles = 0;
-  let totalInput = 0;
-  let totalArchive = 0;
-  let errorCount = 0;
-  
-  if (filteredStatusData && filteredStatusData.length > 0) {
-    // Sort by timestamp to get the most recent entry
-    const sortedData = [...filteredStatusData].sort((a, b) => {
-      return new Date(b.timestamp) - new Date(a.timestamp);
-    });
-    
-    // Get the last entry which has the current totals
-    const lastEntry = sortedData[0];
-    console.log('Last status entry for KPI calculation:', lastEntry);
-    
-    // Try accessing values both from our mapped fields and directly from raw fields
-    if (lastEntry.rawInput !== undefined && lastEntry.rawArchiv !== undefined && lastEntry.rawError !== undefined) {
-      // Use the raw values we stored during processing
-      totalInput = parseInt(lastEntry.rawInput || '0');
-      totalArchive = parseInt(lastEntry.rawArchiv || '0');
-      errorCount = parseInt(lastEntry.rawError || '0');
-      console.log('Using raw values for KPI calculation:', { totalInput, totalArchive, errorCount });
-    } else {
-      // Fall back to using the processed values
-      totalInput = lastEntry.filesProcessed || 0;
-      totalArchive = lastEntry.throughput || 0;
-      errorCount = lastEntry.errorCount || 0;
-      console.log('Using processed values for KPI calculation:', { totalInput, totalArchive, errorCount });
-    }
-    
-    // Total files is the sum of these values
-    totalFiles = totalInput + totalArchive + errorCount;
-    console.log('Calculated totalFiles:', totalFiles);
-  }
-  
-  // Store individual file counts for display
-  const inputFiles = totalInput;
-  const archiveFiles = totalArchive;
-  const errorFiles = errorCount;
-  // Use the improved error rate calculation from our modular component
-  const errorRateValue = calculateErrorRate(filteredStatusData, filteredErrorData);
-  const errorRate = errorRateValue.toFixed(1) + '%';
-  const totalErrors = filteredErrorData.length;
-  
-  // Calculate throughput using our modular component
-  let avgThroughput = calculateThroughput(filteredStatusData);
-  
-  // Calculate pattern matches
-  const patternMatches = filteredPatternData ? filteredPatternData.length : 0;
-  
-  // Determine if processing is active based on recent status entries
-  let processingActive = false;
-  if (filteredStatusData.length > 0) {
-    // Check if the most recent status entry is within the last hour
-    const latestStatus = filteredStatusData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-    const oneHourAgo = new Date();
-    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-    processingActive = new Date(latestStatus.timestamp) > oneHourAgo;
-  }
-  
-  // Determine connection status
-  const connected = processingActive; // Simplified - assume connected if processing is active
-  
-  // Calculate error intensity (errors per hour)
-  let errorIntensity = '0';
-  if (filteredErrorData.length > 0 && startDate && endDate) {
-    const startTime = startDate.getTime();
-    const endTime = endDate.getTime();
-    const hours = Math.max(0.01, (endTime - startTime) / (1000 * 60 * 60));
-    errorIntensity = (filteredErrorData.length / hours).toFixed(1);
-  }
-  
-  // Calculate error trend (percentage change from previous period)
-  let errorTrend = '0%';
-  if (filteredErrorData.length >= 0 && startDate && endDate) {
-    const currentPeriodLength = endDate.getTime() - startDate.getTime();
-    const prevPeriodStart = new Date(startDate.getTime() - currentPeriodLength);
-    const prevPeriodEnd = new Date(startDate.getTime());
-    
-    const currentErrors = filteredErrorData.length;
-    const prevErrors = errorData.filter(entry => {
-      if (!entry.timestamp) return false;
-      const timestamp = new Date(entry.timestamp).getTime();
-      return timestamp >= prevPeriodStart.getTime() && timestamp <= prevPeriodEnd.getTime();
-    }).length;
-    
-    if (prevErrors === 0 && currentErrors === 0) {
-      errorTrend = '0%';
-    } else if (prevErrors === 0) {
-      errorTrend = currentErrors > 0 ? '+∞%' : '0%';
-    } else {
-      const change = ((currentErrors - prevErrors) / prevErrors) * 100;
-      const sign = change > 0 ? '+' : '';
-      errorTrend = `${sign}${change.toFixed(1)}%`;
-    }
-  }
-  
-  // Calculate archive to error ratio
-  let archiveToErrorRatio = 'N/A';
-  if (filteredStatusData.length > 0) {
-    const lastEntry = filteredStatusData[filteredStatusData.length - 1];
-    const archiveCount = parseInt(lastEntry.throughput || 0);
-    const errorCount = parseInt(lastEntry.errorCount || 0);
-    
-    if (errorCount === 0 && archiveCount === 0) {
-      archiveToErrorRatio = 'N/A';
-    } else if (errorCount === 0) {
-      archiveToErrorRatio = '∞';
-    } else if (archiveCount === 0) {
-      archiveToErrorRatio = '0:1';
-    } else {
-      // Use full numbers instead of simplified ratios
-      archiveToErrorRatio = `${archiveCount}:${errorCount}`;
-    }
-  }
-  
-  return {
-    totalFiles,
-    totalErrors,
-    errorRate,
-    errorRateValue,
-    avgThroughput,
-    throughput: avgThroughput, // For widget display
-    patternMatches,
-    processingActive,
-    connected,
-    healthScore: calculateHealthScore({
-      errorRate: errorRateValue,
-      throughput: avgThroughput,
-      processingActive,
-      connected
-    }),
-    inputFiles,
-    archiveFiles,
-    errorFiles,
-    errorIntensity,
-    errorTrend,
-    archiveToErrorRatio
-  };
-}
+// calculateKPIs function has been moved to the kpiCalc.js module
 
 /**
  * Update summary component with KPIs
  * @param {Object} kpis - Key performance indicators
+ * @deprecated This is now just a wrapper for the function in uiManager.js
  */
 function updateSummary(kpis) {
-  // Update summary values
-  document.getElementById('totalFiles').textContent = kpis.totalFiles.toLocaleString();
-  document.getElementById('totalErrors').textContent = kpis.totalErrors.toLocaleString();
-  document.getElementById('errorRate').textContent = kpis.errorRate;
-  document.getElementById('avgThroughput').textContent = kpis.avgThroughput.toLocaleString();
-  document.getElementById('patternMatches').textContent = kpis.patternMatches.toLocaleString();
-  
-  // Update additional summary values from the original dashboard
-  document.getElementById('inputFiles').textContent = kpis.inputFiles.toLocaleString();
-  document.getElementById('archiveFiles').textContent = kpis.archiveFiles.toLocaleString();
-  document.getElementById('errorFiles').textContent = kpis.errorFiles.toLocaleString();
-  
-  // Update KPI grid using our modular component
-  updateKpiGrid(kpis);
+  // Use the modular updateSummary function from uiManager.js
+  updateSummaryFromManager({
+    kpis,
+    summaryCard,
+    updateKpiGrid
+  });
 }
 
 /**
@@ -1054,48 +1170,17 @@ function updateSummary(kpis) {
 
 /**
  * Calculate health score based on KPIs
- * @param {Object} kpis - Key performance indicators
- * @returns {number} - Health score (0-100)
+ * @deprecated This function has been moved to healthGauge.js
+ * @see calculateHealthScore in components/widgets/healthGauge.js
  */
-function calculateHealthScore(kpis) {
-  // Base score starts at 100
-  let score = 100;
-  
-  // Deduct for high error rate (up to -40)
-  score -= Math.min(40, kpis.errorRateValue * 8);
-  
-  // Deduct for low throughput (up to -30)
-  const throughputFactor = Math.max(0, 1 - (kpis.throughput / 100));
-  score -= throughputFactor * 30;
-  
-  // Deduct for connection issues (-20)
-  if (!kpis.connected) {
-    score -= 20;
-  }
-  
-  // Deduct for processing inactive (-10)
-  if (!kpis.processingActive) {
-    score -= 10;
-  }
-  
-  // Ensure score is between 0 and 100
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
+// Function moved to components/widgets/healthGauge.js
 
 /**
  * Get status for error rate
- * @param {number} errorRate - Error rate percentage
- * @returns {string} - Status (ok, warning, error)
+ * @deprecated This function has been moved to healthGauge.js
+ * @see getErrorRateStatus in components/widgets/healthGauge.js
  */
-function getErrorRateStatus(errorRate) {
-  if (errorRate > 5) {
-    return 'error';
-  } else if (errorRate > 2) {
-    return 'warning';
-  } else {
-    return 'ok';
-  }
-}
+// Function moved to components/widgets/healthGauge.js
 
 /**
  * Calculate error rate based on status data changes
@@ -1119,17 +1204,17 @@ function getErrorRateStatus(errorRate) {
 
 /**
  * Update charts with current data
+ * @deprecated Use updateCharts from chartManager.js instead
  */
 function updateCharts() {
-  // Create or update all charts with filtered data
-  createErrorsByHourChart(filteredErrorData);
-  createInputChart(filteredStatusData, getAggregationInterval);
-  createThroughputChart(filteredStatusData, getAggregationInterval);
-  createErrorRateChart(filteredStatusData, filteredErrorData, getAggregationInterval);
-  createErrorTrendChart(filteredErrorData, getKnownErrorPatterns(), formatDate, getChartColor);
-  createErrorsByWeekdayChart(filteredErrorData);
-  createErrorTypePieChart(filteredErrorData, getChartColor);
-  createErrorStackedLine(filteredPatternData, getAggregationInterval);
+  // Use the modular implementation from chartManager.js
+  updateChartsModule({
+    filteredErrorData,
+    filteredStatusData,
+    filteredPatternData,
+    startDate,
+    endDate
+  });
 }
 
 /**
@@ -1137,74 +1222,11 @@ function updateCharts() {
  * @param {Date} startDate - Start date
  * @param {Date} endDate - End date
  * @returns {Object} - Aggregation settings
+ * @deprecated Use getAggregationInterval from chartManager.js instead
  */
 function getAggregationInterval(startDate, endDate) {
-  const diffMs = endDate.getTime() - startDate.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  
-  // Determine appropriate interval based on the date range
-  if (diffDays <= 1) {
-    // For ranges up to 1 day, aggregate by hour
-    return {
-      interval: 'hour',
-      roundFn: (date) => {
-        const rounded = new Date(date);
-        rounded.setMinutes(0, 0, 0);
-        return rounded;
-      },
-      format: (date) => {
-        return date.getHours() + ':00';
-      }
-    };
-  } else if (diffDays <= 14) {
-    // For ranges up to 2 weeks, aggregate by day
-    return {
-      interval: 'day',
-      roundFn: (date) => {
-        const rounded = new Date(date);
-        rounded.setHours(0, 0, 0, 0);
-        return rounded;
-      },
-      format: (date) => {
-        return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-      }
-    };
-  } else if (diffDays <= 90) {
-    // For ranges up to 3 months, aggregate by week
-    return {
-      interval: 'week',
-      roundFn: (date) => {
-        const rounded = new Date(date);
-        const day = rounded.getDay();
-        const diff = rounded.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-        rounded.setDate(diff);
-        rounded.setHours(0, 0, 0, 0);
-        return rounded;
-      },
-      format: (date) => {
-        const weekStart = new Date(date);
-        const weekEnd = new Date(date);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-        return weekStart.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + 
-               ' - ' + 
-               weekEnd.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-      }
-    };
-  } else {
-    // For ranges over 3 months, aggregate by month
-    return {
-      interval: 'month',
-      roundFn: (date) => {
-        const rounded = new Date(date);
-        rounded.setDate(1);
-        rounded.setHours(0, 0, 0, 0);
-        return rounded;
-      },
-      format: (date) => {
-        return date.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' });
-      }
-    };
-  }
+  // Use the modular implementation from chartManager.js
+  return getAggregationIntervalModule(startDate, endDate);
 }
 
 /**
@@ -1214,13 +1236,18 @@ function getAggregationInterval(startDate, endDate) {
 
 /**
  * Update tables with current data
+ * @deprecated This function is now just a wrapper for the modular updateTablesFromManager function from uiManager.js
  */
 function updateTables() {
-  // Update error table with filtered data
-  updateErrorTable(filteredErrorData, formatDateTime);
-  
-  // Update top errors list
-  updateTopErrorsList(filteredErrorData, getKnownErrorPatterns(), getChartColor);
+  // Use the modular updateTables function from uiManager.js
+  updateTablesFromManager({
+    filteredErrorData,
+    getKnownErrorPatterns,
+    getChartColor,
+    formatDateTime,
+    updateErrorTable,
+    updateTopErrorsList
+  });
 }
 
 /**
@@ -1272,123 +1299,32 @@ function updateTables() {
 
 /**
  * Update the last update timestamp
+ * @deprecated This is now just a wrapper for the function in uiManager.js
  */
 function updateLastUpdateTime() {
-  const now = new Date();
-  const formattedTime = now.toLocaleString('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
+  // Use the modular updateLastUpdateTime function from uiManager.js
+  return updateLastUpdateTimeFromManager({
+    updateLastUpdateTimeFromModule,
+    formatDateTime,
+    filteredData: filteredStatusData,
+    lastBackendRunTime: window.lastBackendRunTime
   });
-  
-  // Update last update element directly
-  const lastUpdateElement = document.getElementById('lastUpdate');
-  if (lastUpdateElement) {
-    // Preserve the icon element and update only the text content
-    // First, check if the icon already exists
-    let iconElement = lastUpdateElement.querySelector('.material-icons');
-    
-    // If the icon doesn't exist, create it
-    if (!iconElement) {
-      iconElement = document.createElement('i');
-      iconElement.className = 'material-icons';
-      iconElement.textContent = 'update';
-      lastUpdateElement.prepend(iconElement);
-    }
-    
-    // Clear the element's contents except for the icon
-    let updateText = `Letzte Aktualisierung: ${formattedTime}`;
-    
-    // Add last backend run time if available
-    if (window.lastBackendRunTime) {
-      updateText += ` | Letzte Daten im Zeitraum: ${window.lastBackendRunTime}`;
-    } else if (filteredStatusData && filteredStatusData.length === 0) {
-      updateText += ` | Keine Daten im ausgewählten Zeitraum`;
-    }
-    
-    const textNode = document.createTextNode(updateText);
-    
-    // Remove all child nodes except the icon
-    while (lastUpdateElement.childNodes.length > 1) {
-      lastUpdateElement.removeChild(lastUpdateElement.lastChild);
-    }
-    
-    // Add the new text
-    lastUpdateElement.appendChild(textNode);
-    
-    // Add animation class
-    lastUpdateElement.classList.add('timestamp-updated');
-    
-    // Remove animation class after animation completes
-    setTimeout(() => {
-      lastUpdateElement.classList.remove('timestamp-updated');
-    }, 2000); // Match the animation duration in CSS
-  }
-  
-  // Store the last update time in localStorage for persistence
-  localStorage.setItem('afmDashboardLastUpdate', now.toISOString());
-  
-  console.log('Last update time updated:', formattedTime);
 }
 
 /**
  * Update the filter display
+ * @deprecated This is now just a wrapper for the function in uiManager.js
  */
 function updateFilterDisplay() {
-  if (!startDate || !endDate) return;
-  
-  // Update timeframe display
-  const timeframeDuration = document.getElementById('timeframeDuration');
-  if (timeframeDuration) {
-    // Calculate and format duration manually since we don't have formatDuration
-    const durationMs = endDate.getTime() - startDate.getTime();
-    const durationDays = Math.floor(durationMs / (1000 * 60 * 60 * 24));
-    const durationHours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
-    let durationText = '';
-    if (durationDays > 0) {
-      durationText += `${durationDays} ${durationDays === 1 ? 'Tag' : 'Tage'}`;
-      if (durationHours > 0) {
-        durationText += ` ${durationHours} ${durationHours === 1 ? 'Stunde' : 'Stunden'}`;
-      }
-    } else if (durationHours > 0) {
-      durationText += `${durationHours} ${durationHours === 1 ? 'Stunde' : 'Stunden'}`;
-    } else {
-      const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-      durationText += `${durationMinutes} ${durationMinutes === 1 ? 'Minute' : 'Minuten'}`;
-    }
-    
-    timeframeDuration.textContent = durationText;
-  }
-  
-  // Update last update time display
-  updateLastUpdateTime();
+  // Use the modular updateFilterDisplay function from uiManager.js
+  updateFilterDisplayFromManager({
+    startDate,
+    endDate,
+    updateLastUpdateTimeFn: updateLastUpdateTime
+  });
 }
 
-/**
- * Toggle card content visibility
- * @param {string} cardId - ID of the card to toggle
- */
-export function toggleCard(cardId) {
-  const card = document.getElementById(cardId);
-  if (!card) return;
-  
-  const content = card.querySelector('.mdl-card__supporting-text');
-  const toggleBtn = card.querySelector('.toggle-card-btn i');
-  
-  if (!content || !toggleBtn) return;
-  
-  if (content.style.display === 'none') {
-    content.style.display = 'block';
-    toggleBtn.textContent = 'expand_less';
-  } else {
-    content.style.display = 'none';
-    toggleBtn.textContent = 'expand_more';
-  }
-}
+// toggleCard function moved to uiManager.js
 
 /**
  * Show or hide loading indicators
@@ -1424,6 +1360,7 @@ export {
   toggleTheme,
   updateLastUpdateTime,
   toggleFilter,
+  toggleAccordionFilter,
   applyDateFilter,
   resetDateFilter,
   shiftDateRange,

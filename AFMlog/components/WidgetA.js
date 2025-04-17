@@ -5,65 +5,39 @@
 class WidgetA {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
-    this.render();
     this.initGauge();
+    this.setupEventListeners();
   }
 
-  render() {
-    this.container.innerHTML = `
-      <div class="mdl-card__title">
-        <h2 class="mdl-card__title-text">System-Gesundheit</h2>
-        <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('healthCard')" title="Ein-/ausklappen">
-          <i class="material-icons">expand_less</i>
-        </button>
-      </div>
-      <div class="mdl-card__supporting-text">
-        <div class="health-gauge-container">
-          <canvas id="healthGauge"></canvas>
-          <div id="healthScore">100</div>
-        </div>
-        
-        <div style="margin-top: 16px;">
-          <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <span class="status-indicator status-ok"></span>
-            <span style="flex: 1;">Dateiverarbeitung</span>
-            <span id="fileProcessingStatus">Aktiv</span>
-          </div>
-          <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <span class="status-indicator status-ok"></span>
-            <span style="flex: 1;">Fehlerrate</span>
-            <span id="errorRateStatus">0.0%</span>
-          </div>
-          <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <span class="status-indicator status-ok"></span>
-            <span style="flex: 1;">Durchsatz</span>
-            <span id="throughputStatus">0 Dateien/h</span>
-          </div>
-          <div style="display: flex; align-items: center;">
-            <span class="status-indicator status-ok"></span>
-            <span style="flex: 1;">Verbindungsstatus</span>
-            <span id="connectionStatus">Verbunden</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
+  /**
+   * Initialize the health gauge using Chart.js
+   */
   initGauge() {
-    // Initialize the health gauge using Chart.js
-    const ctx = document.getElementById('healthGauge').getContext('2d');
+    const canvas = document.getElementById('healthGauge');
     
-    // Create the gauge chart
+    // Restore original dimensions
+    canvas.height = 200;
+    canvas.style.height = '200px';
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Get theme-aware colors
+    this.updateChartColors();
+    
+    // Create the gauge chart with enhanced visuals
     this.chart = new Chart(ctx, {
       type: 'doughnut',
       data: {
         datasets: [{
           data: [100, 0],
           backgroundColor: [
-            '#4caf50', // Green for good health
-            '#e0e0e0'  // Gray for background
+            this.colors.successColor, // Theme-aware color for good health
+            this.colors.bgColor       // Theme-aware background
           ],
-          borderWidth: 0
+          borderWidth: 2,
+          borderColor: 'rgba(0,0,0,0.05)',
+          hoverOffset: 10,
+          borderRadius: 5
         }]
       },
       options: {
@@ -71,15 +45,34 @@ class WidgetA {
         circumference: 180,
         rotation: 270,
         maintainAspectRatio: false,
+        aspectRatio: 2, // Make the chart wider than it is tall
         animation: {
           animateRotate: true,
-          animateScale: true
+          animateScale: true,
+          duration: 1000,
+          easing: 'easeOutQuart'
         },
         plugins: {
           tooltip: {
             enabled: false
           },
           legend: {
+            display: false
+          }
+        },
+        layout: {
+          padding: {
+            top: -60,    // Negative padding to move gauge up
+            right: 20,
+            bottom: 100, // Increased bottom padding to balance the chart
+            left: 20
+          }
+        },
+        scales: {
+          y: {
+            display: false
+          },
+          x: {
             display: false
           }
         }
@@ -89,31 +82,67 @@ class WidgetA {
 
   // Public method to update the health score
   updateHealthScore(score) {
-    const healthScore = Math.round(score);
+    // Store current health for theme change updates
+    this.currentHealth = Math.min(Math.max(0, Math.round(score)), 100); // Ensure score is between 0-100
     
-    // Update score display
+    // Update the chart with current health
+    this.updateChart(this.currentHealth);
+    
+    // Update the health score text without % and with matching color
     const scoreElement = document.getElementById('healthScore');
     if (scoreElement) {
-      scoreElement.textContent = healthScore;
-      scoreElement.style.color = this.getHealthColor(healthScore);
+      scoreElement.textContent = this.currentHealth;
+      scoreElement.style.color = this.getHealthColor(this.currentHealth);
+      
+      // Add a transition effect
+      scoreElement.style.transition = 'color 0.5s ease';
+    }
+  }
+  
+  /**
+   * Update chart with current health score and theme-aware colors
+   * @param {number} score - Health score between 0-100
+   */
+  updateChart(score) {
+    if (!this.chart || !this.colors) return;
+    
+    // Get theme-aware colors based on health score
+    let healthColor;
+    if (score >= 80) {
+      healthColor = this.colors.successColor;
+    } else if (score >= 50) {
+      healthColor = this.colors.warningColor;
+    } else {
+      healthColor = this.colors.errorColor;
     }
     
-    // Update gauge chart
-    if (this.chart) {
-      this.chart.data.datasets[0].data = [healthScore, 100 - healthScore];
-      this.chart.data.datasets[0].backgroundColor[0] = this.getHealthColor(healthScore);
-      this.chart.update();
-    }
+    // Update chart data
+    this.chart.data.datasets[0].data = [score, 100 - score];
+    this.chart.data.datasets[0].backgroundColor = [healthColor, this.colors.bgColor];
+    this.chart.update();
   }
 
   // Public method to update status indicators
   updateStatus(data) {
-    const { fileProcessing, errorRate, throughput, connection } = data;
+    const { fileProcessing, errorRate, throughput, connection, errorIntensity, errorTrend, archiveToErrorRatio } = data;
     
     this.updateStatusItem('fileProcessingStatus', fileProcessing.value, fileProcessing.status);
     this.updateStatusItem('errorRateStatus', errorRate.value, errorRate.status);
     this.updateStatusItem('throughputStatus', throughput.value, throughput.status);
     this.updateStatusItem('connectionStatus', connection.value, connection.status);
+    
+    // Update new status indicators if they exist
+    if (errorIntensity) {
+      this.updateStatusItem('errorIntensityStatus', errorIntensity.value, errorIntensity.status);
+    }
+    
+    if (errorTrend) {
+      this.updateStatusItem('errorTrendStatus', errorTrend.value, errorTrend.status);
+    }
+    
+    if (archiveToErrorRatio) {
+      this.updateStatusItem('ratioStatus', archiveToErrorRatio.value, archiveToErrorRatio.status);
+    }
   }
   
   // Helper method to update a status item
@@ -142,13 +171,76 @@ class WidgetA {
 
   // Helper method to get color based on health score
   getHealthColor(score) {
-    if (score >= 80) {
-      return 'var(--success-color)';
-    } else if (score >= 60) {
-      return 'var(--warning-color)';
-    } else {
-      return 'var(--error-color)';
+    // Make sure we have the current theme colors
+    if (!this.colors) {
+      this.updateChartColors();
     }
+    
+    if (score >= 80) {
+      return this.colors.successColor;
+    } else if (score >= 60) {
+      return this.colors.warningColor;
+    } else {
+      return this.colors.errorColor;
+    }
+  }
+
+  /**
+   * Set up event listeners for the widget
+   */
+  setupEventListeners() {
+    // NOTE: Toggle card functionality is now handled centrally by uiManager.js
+    // through setupCardToggleListeners(), which adds listeners to all toggle buttons.
+    // We don't need to add our own event listener here to avoid double-firing.
+    
+    // Add theme change listener to update chart colors
+    this.themeObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'data-theme') {
+          this.updateChartColors();
+          this.updateChart(this.currentHealth || 100);
+          
+          // Also update the health score text color
+          const scoreElement = document.getElementById('healthScore');
+          if (scoreElement && this.currentHealth) {
+            scoreElement.style.color = this.getHealthColor(this.currentHealth);
+          }
+        }
+      });
+    });
+    
+    // Start observing theme changes
+    this.themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+  }
+  
+  /**
+   * Clean up resources when the widget is destroyed
+   */
+  destroy() {
+    // Stop observing theme changes
+    if (this.themeObserver) {
+      this.themeObserver.disconnect();
+    }
+    
+    // Destroy chart instance
+    if (this.chart) {
+      this.chart.destroy();
+    }
+  }
+  
+  /**
+   * Update chart colors based on current theme
+   */
+  updateChartColors() {
+    this.colors = {
+      successColor: getComputedStyle(document.documentElement).getPropertyValue('--success-color').trim(),
+      warningColor: getComputedStyle(document.documentElement).getPropertyValue('--warning-color').trim(),
+      errorColor: getComputedStyle(document.documentElement).getPropertyValue('--error-color').trim(),
+      bgColor: getComputedStyle(document.documentElement).getPropertyValue('--card-bg-color').trim()
+    };
   }
 }
 

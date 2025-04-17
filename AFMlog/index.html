@@ -23,6 +23,55 @@
   <script defer src="libs/js/material.min.js"></script>
   <!-- PapaParse für CSV-Parsing -->
   <script src="libs/js/papaparse.min.js"></script>
+  <!-- Load dashboard script -->
+  <script type="module" src="./scripts/dashboard.js"></script>
+  
+  <!-- Custom styles for filter dropdowns -->
+  <!-- Consolidated CSS file that includes all component styles -->
+  <!--<link rel="stylesheet" href="styles/main.css">-->
+  <!-- Original CSS files (temporary until inline styles are migrated) -->
+  <link rel="stylesheet" href="styles/filterComponents.css">
+  <link rel="stylesheet" href="styles/errorTypeFilter.css">
+  <link rel="stylesheet" href="styles/quickFilterDropdown.css">
+  <link rel="stylesheet" href="styles/errorTypeDropdown.css">
+  <link rel="stylesheet" href="styles/cardCollapse.css">
+  
+  <!-- Direct initialization for filter components -->
+  <script type="module">
+    import { initErrorTypeFilter, toggleErrorTypeDropdown, closeErrorTypeDropdown, initQuickFilter, toggleQuickFilterDropdown, closeQuickFilterDropdown } from './components/widgets/index.js';
+    
+    // Make functions available globally
+    window.initErrorTypeFilterDirect = initErrorTypeFilter;
+    window.toggleErrorTypeDropdownDirect = toggleErrorTypeDropdown;
+    window.closeErrorTypeDropdownDirect = closeErrorTypeDropdown;
+    window.initQuickFilterDirect = initQuickFilter;
+    window.toggleQuickFilterDropdownDirect = toggleQuickFilterDropdown;
+    window.closeQuickFilterDropdownDirect = closeQuickFilterDropdown;
+    
+    // Initialize when page is fully loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Direct initialization of filter components');
+      const filterContainer = document.querySelector('.filter-elements-container');
+      if (filterContainer) {
+        // Initialize error type filter
+        initErrorTypeFilter({
+          container: filterContainer
+        });
+        
+        // Initialize quick filter
+        initQuickFilter({
+          container: filterContainer,
+          onFilterChange: (start, end) => {
+            // Dispatch event for other components to listen to
+            const event = new CustomEvent('date-filter-changed', {
+              detail: { startDate: start, endDate: end }
+            });
+            document.dispatchEvent(event);
+          }
+        });
+      }
+    });
+  </script>
   <!-- Chart.js für Diagramme -->
   <script src="libs/js/chart.js"></script>
   <script src="libs/js/chartjs-chart-matrix.min.js"></script>
@@ -35,20 +84,29 @@
   <script src="libs/js/nouislider.min.js"></script>
   
   <!-- Modular CSS -->
+  <!-- Original CSS files (temporary until inline styles are migrated) -->
   <link rel="stylesheet" href="styles/styles.css">
   <link rel="stylesheet" href="styles/lastUpdate.css">
   <link rel="stylesheet" href="styles/errorList.css">
   <link rel="stylesheet" href="styles/quickFilter.css">
   <link rel="stylesheet" href="styles/kpiCards.css">
   <link rel="stylesheet" href="styles/dateFilter.css">
+  <link rel="stylesheet" href="styles/tabAnimations.css">
+  <link rel="stylesheet" href="styles/accordionFilter.css">
+  <link rel="stylesheet" href="styles/summaryCard.css">
   <link rel="stylesheet" href="styles/tooltips.css">
   <link rel="stylesheet" href="styles/pagination.css">
   <link rel="stylesheet" href="styles/patternBadges.css">
+  <link rel="stylesheet" href="styles/cardCollapse.css">
+  <link rel="stylesheet" href="styles/autoRefresh.css">
+  <link rel="stylesheet" href="styles/errorTypeFilter.css">
   
   <!-- Script to expose module functions globally -->
   <script type="module">
     // Import dashboard functions
-    import { showTab, toggleCard, filterByErrorType, toggleAutoRefresh } from './scripts/dashboard.js';
+    import { showTab, filterByErrorType, toggleAccordionFilter } from './scripts/dashboard.js';
+    import { toggleAutoRefresh } from './scripts/autoRefresh.js';
+    import { toggleCard } from './scripts/uiManager.js';
     import { applyQuickFilter as moduleApplyQuickFilter, toggleQuickFilterDropdown as moduleToggleQuickFilterDropdown, resetDateFilter as moduleResetDateFilter, shiftDateRange as moduleShiftDateRange, applyDateFilter as moduleApplyDateFilter } from './components/widgets/dateFilter.js';
     
     // Expose functions to global scope for inline event handlers
@@ -56,6 +114,7 @@
     window.toggleCard = toggleCard;
     window.filterByErrorType = filterByErrorType;
     window.toggleAutoRefresh = toggleAutoRefresh;
+    window.toggleAccordionFilter = toggleAccordionFilter;
     
     // Create wrapper functions for date filter functions to handle the different signatures
     // The HTML inline handlers expect different parameters than our modular functions
@@ -123,60 +182,172 @@
   </script>
 </head>
 <body>
-  <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
-    <!-- Header Component (will be loaded via JavaScript) -->
-    <div id="header-container"></div>
-
+  <!-- The entire layout structure needs to be in a single MDL container -->
+  <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header" id="main-layout">
+    <!-- Header with proper mobile support -->
+    <header class="mdl-layout__header">
+      <!-- Header Component (will be loaded via JavaScript) -->
+      <div id="header-container"></div>
+    </header>
+    
+    <!-- Drawer for mobile navigation - MUST be inside the layout container -->
+    <div class="mdl-layout__drawer">
+      <span class="mdl-layout-title">AFM Dashboard</span>
+      <nav class="mdl-navigation">
+        <a class="mdl-navigation__link" href="#overview" id="overviewTabDrawer">Übersicht</a>
+        <a class="mdl-navigation__link" href="#status" id="statusTabDrawer">Status</a>
+        <a class="mdl-navigation__link" href="#analysis" id="analysisTabDrawer">Analyse</a>
+        <a class="mdl-navigation__link" href="#tables" id="tablesTabDrawer">Tabellen</a>
+        
+        <!-- Auto-refresh toggle in drawer for mobile -->
+        <div class="auto-refresh-container-drawer">
+          <span class="auto-refresh-label">Auto-Refresh:</span>
+          <label class="switch">
+            <input type="checkbox" id="autoRefreshToggleDrawer" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </nav>
+    </div>
+    
+    <!-- Main content area -->
     <main class="mdl-layout__content">
-      <div class="page-content">
-        <div id="lastUpdate" class="mdl-shadow--2dp"><i class="material-icons">update</i>Letzte Aktualisierung: --.--.---- --:--:--</div>
-        
-        <!-- Filter für Zeitraum -->
-        <div id="sidebar-container" class="filter-header mdl-shadow--2dp">
-          <!-- Sidebar will be loaded here -->
+      <!-- Accordion Filter that slides down from the header -->
+      <div id="accordionFilter" class="accordion-filter">
+        <!-- Accordion Filter Header -->
+        <div class="accordion-filter-header">
+          <div class="accordion-filter-title">Zeitraumfilter</div>
+          <button id="accordionCloseBtn" class="mdl-button mdl-js-button mdl-button--icon" title="Filter schließen">
+            <i class="material-icons">close</i>
+          </button>
         </div>
         
-        <div class="filter-container mdl-shadow--2dp" id="filterContent" style="padding: 16px; background-color: var(--card-bg-color); display: flex; justify-content: center; align-items: flex-start;">
-          <!-- Date filter content will be loaded here -->
-        </div>
-
-        <!-- Übersicht Tab -->
-        <div id="overview" class="tab-container active">
-          <!-- Zusammenfassung -->
-          <div class="mdl-grid summary-card mdl-shadow--2dp">
-            <div class="summary-item">
-              <div class="summary-value" id="totalFiles">-</div>
-              <div class="summary-label">Dateien verarbeitet</div>
+        <!-- Accordion Filter Content -->
+        <div class="accordion-filter-content">
+          <div class="filter-elements-container">
+            <!-- Date Range Slider -->
+            <div class="date-range-slider-container mdl-shadow--2dp">
+              <div class="date-range-slider-title">Zeitraumauswahl</div>
+              <div class="slider-controls">
+                <div id="dateRangeSlider" class="slider-container"></div>
+                <div id="sliderDurationTooltip" class="slider-duration-tooltip"></div>
+                <div class="time-markers" id="timeMarkers"></div>
+              </div>
+              
+              <div class="timeframe-navigation">
+                <div class="timeframe-nav-group">
+                  <button id="prevPeriodBtn" class="timeframe-button tooltip">
+                    <i class="material-icons">chevron_left</i>
+                    <span class="tooltiptext">Vorheriger Zeitraum</span>
+                  </button>
+                  <div id="timeframeDisplay" class="timeframe-display">
+                    Zeitraum: <span id="timeframeDuration"></span>
+                  </div>
+                  <button id="nextPeriodBtn" class="timeframe-button tooltip">
+                    <i class="material-icons">chevron_right</i>
+                    <span class="tooltiptext">Nächster Zeitraum</span>
+                  </button>
+                </div>
+                
+                <div class="flex-spacer"></div>
+                
+                <!-- Filter buttons will be added here by JavaScript -->
+              </div>
             </div>
-            <div class="summary-item">
-              <div class="summary-value" id="inputFiles">-</div>
-              <div class="summary-label">Input-Dateien</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value" id="archiveFiles">-</div>
-              <div class="summary-label">Archiv-Dateien</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value" id="errorFiles">-</div>
-              <div class="summary-label">Fehler-Dateien</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value" id="totalErrors">-</div>
-              <div class="summary-label">Fehler gesamt</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value" id="patternMatches">-</div>
-              <div class="summary-label">Muster erkannt</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value" id="errorRate">-</div>
-              <div class="summary-label">Fehlerrate</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value" id="avgThroughput">-</div>
-              <div class="summary-label">Durchsatz/Stunde</div>
+            
+            <!-- Date/Time Filter Groups Container -->
+            <div class="date-time-filter-groups">
+              <!-- Start Date and Time -->
+              <div class="filter-group">
+                <label class="filter-label">Startdatum und -zeit</label>
+                <div class="date-time-input-group">
+                  <!-- Combined date-time row -->
+                  <div class="date-time-row">
+                    <!-- Date Input with Controls -->
+                    <div class="date-time-flex-container">
+                      <input type="date" id="startDate" class="date-input">
+                      <div class="date-time-controls">
+                        <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="date" data-input="startDate" data-amount="1" data-unit="day">
+                          <i class="material-icons">keyboard_arrow_up</i>
+                        </button>
+                        <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="date" data-input="startDate" data-amount="-1" data-unit="day">
+                          <i class="material-icons">keyboard_arrow_down</i>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <!-- Time Input with Controls -->
+                    <div class="date-time-flex-container">
+                      <input type="time" id="startTime" class="time-input">
+                      <div class="date-time-controls">
+                        <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="time" data-input="startTime" data-amount="1" data-unit="hour">
+                          <i class="material-icons">keyboard_arrow_up</i>
+                        </button>
+                        <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="time" data-input="startTime" data-amount="-1" data-unit="hour">
+                          <i class="material-icons">keyboard_arrow_down</i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- End Date and Time -->
+              <div class="filter-group">
+                <label class="filter-label">Enddatum und -zeit</label>
+                <div class="date-time-input-group">
+                  <!-- Combined date-time row -->
+                  <div class="date-time-row">
+                    <!-- Date Input with Controls -->
+                    <div class="date-time-flex-container">
+                      <input type="date" id="endDate" class="date-input">
+                      <div class="date-time-controls">
+                        <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="date" data-input="endDate" data-amount="1" data-unit="day">
+                          <i class="material-icons">keyboard_arrow_up</i>
+                        </button>
+                        <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="date" data-input="endDate" data-amount="-1" data-unit="day">
+                          <i class="material-icons">keyboard_arrow_down</i>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <!-- Time Input with Controls -->
+                    <div class="date-time-flex-container">
+                      <input type="time" id="endTime" class="time-input">
+                      <div class="date-time-controls">
+                        <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="time" data-input="endTime" data-amount="1" data-unit="hour">
+                          <i class="material-icons">keyboard_arrow_up</i>
+                        </button>
+                        <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="time" data-input="endTime" data-amount="-1" data-unit="hour">
+                          <i class="material-icons">keyboard_arrow_down</i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+      
+      <!-- Page content with proper padding -->
+      <div class="page-content">
+        <!-- Last update card with auto-refresh countdown -->
+        <div id="lastUpdate" class="mdl-shadow--2dp">
+          <div class="update-info-container">
+            <div class="left-container">
+              <i class="material-icons">update</i>
+              <span id="nextRefreshCountdown" class="next-refresh-countdown"></span>
+            </div>
+            <span class="last-update-text"></span>
+          </div>
+        </div>
+        
+        <!-- Übersicht Tab -->
+        <div id="overview" class="tab-container active">
+          <!-- Zusammenfassung - Container for modular component -->
+          <div id="summary-container"></div>
 
           <!-- KPI Cards - Container for modular component -->
           <div id="kpi-grid-container"></div>
@@ -184,14 +355,58 @@
           <div class="mdl-grid">
             <div class="mdl-cell mdl-cell--4-col">
               <div id="healthCard" class="mdl-card mdl-shadow--2dp">
-                <!-- Widget A will be loaded here -->
+                <div class="mdl-card__title">
+                  <h2 class="mdl-card__title-text">System-Gesundheit</h2>
+                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
+                    <i class="material-icons">expand_less</i>
+                  </button>
+                </div>
+                <div class="mdl-card__supporting-text">
+                  <div class="health-gauge-container">
+                    <canvas id="healthGauge"></canvas>
+                    <div id="healthScore">--</div>
+                  </div>
+                  
+                  <div style="margin-top: -30px;">
+                    <div class="status-item">
+                      <span class="status-indicator status-ok"></span>
+                      <span class="status-label">Daten Verarbeitung</span>
+                      <span id="fileProcessingStatus" class="status-value">Aktiv</span>
+                    </div>
+                    <div class="status-item">
+                      <span class="status-indicator status-ok"></span>
+                      <span class="status-label">Fehlerrate</span>
+                      <span id="errorRateStatus" class="status-value">0.0%</span>
+                    </div>
+                    <div class="status-item">
+                      <span class="status-indicator status-ok"></span>
+                      <span class="status-label">Durchsatz</span>
+                      <span id="throughputStatus" class="status-value">0 Dateien/h</span>
+                    </div>
+                    <div class="status-item">
+                      <span class="status-indicator status-ok"></span>
+                      <span class="status-label">Daten Eingang</span>
+                      <span id="connectionStatus" class="status-value">Normal</span>
+                    </div>
+                    <div class="status-item">
+                      <span class="status-indicator status-ok"></span>
+                      <span class="status-label">Fehler-Intensität</span>
+                      <span id="errorIntensityStatus" class="status-value">0.0/h</span>
+                    </div>
+                    <div class="status-item">
+                      <span class="status-indicator status-ok"></span>
+                      <span class="status-label">Fehler-Trend</span>
+                      <span id="errorTrendStatus" class="status-value">0%</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="mdl-cell mdl-cell--8-col">
               <div id="topErrorsCard" class="mdl-card mdl-shadow--2dp">
                 <div class="mdl-card__title">
                   <h2 class="mdl-card__title-text">Top Fehler</h2>
-                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('topErrorsCard')" title="Ein-/ausklappen">
+                  <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                     <i class="material-icons">expand_less</i>
                   </button>
                 </div>
@@ -202,31 +417,31 @@
             </div>
           </div>
 
-          <div id="errorsByHourCard" class="mdl-card mdl-shadow--2dp">
-            <div class="mdl-card__title">
-              <h2 class="mdl-card__title-text">Fehler nach Tageszeit</h2>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorsByHourCard')" title="Ein-/ausklappen">
-                <i class="material-icons">expand_less</i>
-              </button>
-            </div>
-            <div class="mdl-card__supporting-text">
-              <div class="chart-container">
-                <canvas id="errorsByHourChart"></canvas>
-              </div>
-            </div>
-          </div>
-          
           <!-- Error Stacked Line Chart -->
           <div id="errorStackedLineCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehlertypen-Verlauf</h2>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorStackedLineCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container" style="height: 400px;">
                 <canvas id="errorStackedLine"></canvas>
+              </div>
+            </div>
+          </div>
+          
+          <div id="errorsByHourCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehler nach Tageszeit</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container">
+                <canvas id="errorsByHourChart"></canvas>
               </div>
             </div>
           </div>
@@ -238,7 +453,7 @@
           <div id="inputChartCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Eingangsstatistik</h2>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('inputChartCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
@@ -252,7 +467,7 @@
           <div id="throughputChartCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Durchsatz</h2>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('throughputChartCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
@@ -266,7 +481,7 @@
           <div id="errorRateChartCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehlerrate</h2>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorRateChartCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
@@ -283,7 +498,7 @@
           <div id="errorTrendCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehler-Trend nach Typ</h2>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorTrendCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
@@ -297,7 +512,7 @@
           <div id="errorsByWeekdayCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehler nach Wochentag</h2>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorsByWeekdayCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
@@ -311,13 +526,28 @@
           <div id="errorTypeCard" class="mdl-card mdl-shadow--2dp">
             <div class="mdl-card__title">
               <h2 class="mdl-card__title-text">Fehlertypen</h2>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorTypeCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="chart-container">
                 <canvas id="errorTypePieChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Heatmap Card -->
+          <div id="errorHeatmapCard" class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+              <h2 class="mdl-card__title-text">Fehler-Heatmap (Wochentag/Stunde)</h2>
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
+                <i class="material-icons">expand_less</i>
+              </button>
+            </div>
+            <div class="mdl-card__supporting-text">
+              <div class="chart-container" style="height: 400px;">
+                <canvas id="errorHeatmapChart"></canvas>
               </div>
             </div>
           </div>
@@ -336,14 +566,14 @@
                   <span class="tooltiptext">Daten aus AFM_status_log.csv</span>
                 </div>
               </div>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('statusTableCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="search-container">
                 <input type="text" id="statusSearch" class="search-input" placeholder="Suchen...">
-                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button" onclick="searchStatus()">Suchen</button>
+                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button">Suchen</button>
               </div>
               <div id="statusTable"></div>
             </div>
@@ -359,14 +589,14 @@
                   <span class="tooltiptext">Daten aus AFM_error_log.csv</span>
                 </div>
               </div>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('errorLogTableCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="search-container">
                 <input type="text" id="errorLogSearch" class="search-input" placeholder="Suchen...">
-                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button" onclick="searchErrorLog()">Suchen</button>
+                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button">Suchen</button>
               </div>
               <div id="errorLogTable"></div>
             </div>
@@ -382,14 +612,14 @@
                   <span class="tooltiptext">Daten aus AFM_pattern_matches.csv</span>
                 </div>
               </div>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('patternTableCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="search-container">
                 <input type="text" id="patternSearch" class="search-input" placeholder="Suchen...">
-                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button" onclick="searchPatterns()">Suchen</button>
+                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button">Suchen</button>
               </div>
               <div id="patternTable"></div>
             </div>
@@ -405,14 +635,14 @@
                   <span class="tooltiptext">Daten aus AFM_input_details.csv</span>
                 </div>
               </div>
-              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" onclick="toggleCard('inputTableCard')" title="Ein-/ausklappen">
+              <button class="mdl-button mdl-js-button mdl-button--icon toggle-card-btn" title="Ein-/ausklappen">
                 <i class="material-icons">expand_less</i>
               </button>
             </div>
             <div class="mdl-card__supporting-text">
               <div class="search-container">
                 <input type="text" id="inputSearch" class="search-input" placeholder="Suchen...">
-                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button" onclick="searchInputs()">Suchen</button>
+                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored search-button">Suchen</button>
               </div>
               <div id="inputTable"></div>
             </div>
@@ -422,30 +652,281 @@
     </main>
   </div>
 
-  <!-- Refresh Button -->
+  <!-- Pagination Template (Hidden) -->
+  <template id="pagination-template">
+    <div class="pagination" style="margin-top: 16px; text-align: center;">
+      <div class="pagination-info" style="margin-bottom: 8px; color: var(--text-color, #333);">Seite <span class="current-page"></span> von <span class="total-pages"></span> (<span class="total-entries"></span> Einträge)</div>
+      <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center;">
+        <button class="mdl-button mdl-js-button mdl-button--icon pagination-button prev-page">
+          <i class="material-icons">chevron_left</i>
+        </button>
+        <div class="page-buttons" style="display: inline-flex;"></div>
+        <button class="mdl-button mdl-js-button mdl-button--icon pagination-button next-page">
+          <i class="material-icons">chevron_right</i>
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <!-- Summary Card Template (Hidden) -->
+  <template id="summary-card-template">
+    <div class="mdl-grid summary-card mdl-shadow--2dp"></div>
+  </template>
+
+  <!-- Summary Item Template (Hidden) -->
+  <template id="summary-item-template">
+    <div class="summary-item">
+      <div class="summary-value" data-ref="">-</div>
+      <div class="summary-label">
+        <span class="label-text"></span>
+        <span class="tooltip">
+          <i class="material-icons info-icon">info_outline</i>
+          <span class="tooltiptext"></span>
+        </span>
+      </div>
+    </div>
+  </template>
+
+  <!-- Refresh Interval Dialog Template (Hidden) -->
+  <template id="refresh-interval-dialog-template">
+    <h4 class="mdl-dialog__title">Aktualisierungsintervall anpassen</h4>
+    <div class="mdl-dialog__content">
+      <p>Geben Sie ein benutzerdefiniertes Aktualisierungsintervall ein (mindestens 10 Sekunden):</p>
+      <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+        <input class="mdl-textfield__input" type="number" id="customIntervalInput" min="10">
+        <label class="mdl-textfield__label" for="customIntervalInput">Sekunden</label>
+      </div>
+    </div>
+    <div class="mdl-dialog__actions">
+      <button type="button" class="mdl-button apply">Übernehmen</button>
+      <button type="button" class="mdl-button close">Abbrechen</button>
+    </div>
+  </template>
+
+  <!-- Header Template (Hidden) -->
+  <template id="header-template">
+    <div class="mdl-layout__header-row">
+      <!-- Logo -->
+      <img src="images/icon-72x72.png" alt="AFM Logo" class="header-logo">
+      
+      <!-- Title with responsive versions -->
+      <span class="mdl-layout-title">
+        <span class="title-full">AnyFileMonitor Dashboard</span>
+        <span class="title-mobile">AnyFileMonitor</span>
+      </span>
+      
+      <!-- Add spacer, to align navigation to the right -->
+      <div class="mdl-layout-spacer"></div>
+      
+      <!-- Filter toggle button -->
+      <button id="filterToggleBtn" class="mdl-button mdl-js-button mdl-button--icon filter-toggle-btn" title="Filter ein-/ausklappen">
+        <i class="material-icons">filter_alt</i>
+      </button>
+      
+      <!-- Theme toggle (visible on all devices) -->
+      <label class="theme-toggle">
+        <input type="checkbox" id="themeToggle">
+        <span class="theme-toggle-slider">
+          <i class="material-icons theme-toggle-icon sun">light_mode</i>
+          <i class="material-icons theme-toggle-icon moon">dark_mode</i>
+        </span>
+      </label>
+      
+      <!-- Auto-refresh toggle and interval selector (hidden on small screens) -->
+      <div class="auto-refresh-container hide-on-mobile">
+        <span class="auto-refresh-label">Auto-Refresh:</span>
+        <label class="switch">
+          <input type="checkbox" id="autoRefreshToggle" checked>
+          <span class="slider"></span>
+        </label>
+        <div class="refresh-interval-container">
+          <button id="refreshIntervalButton" class="mdl-button mdl-js-button mdl-button--icon">
+            <i class="material-icons">timer</i>
+          </button>
+          <div class="mdl-tooltip" for="refreshIntervalButton">Aktualisierungsintervall festlegen</div>
+          <ul class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="refreshIntervalButton">
+            <li class="mdl-menu__item" data-interval="30sec">30 Sekunden</li>
+            <li class="mdl-menu__item" data-interval="1min">1 Minute</li>
+            <li class="mdl-menu__item" data-interval="5min">5 Minuten</li>
+            <li class="mdl-menu__item" data-interval="15min">15 Minuten</li>
+            <li class="mdl-menu__item" data-interval="30min">30 Minuten</li>
+            <li class="mdl-menu__item" data-interval="1hour">1 Stunde</li>
+            <li class="mdl-menu__item custom-interval">Benutzerdefiniert...</li>
+          </ul>
+        </div>
+      </div>
+      
+      <!-- Navigation (hidden on mobile, shown in drawer instead) -->
+      <nav class="mdl-navigation mdl-layout--large-screen-only">
+        <a class="mdl-navigation__link" href="#overview" id="overviewTab">Übersicht</a>
+        <a class="mdl-navigation__link" href="#status" id="statusTab">Status</a>
+        <a class="mdl-navigation__link" href="#analysis" id="analysisTab">Analyse</a>
+        <a class="mdl-navigation__link" href="#tables" id="tablesTab">Tabellen</a>
+      </nav>
+    </div>
+  </template>
+
+  <!-- Footer Buttons Template (Hidden) -->
+  <template id="footer-buttons-template">
+    <div class="footer-buttons">
+      <!-- Filter buttons removed - filters now apply dynamically -->
+      
+      <!-- Refresh Button -->
+      <button class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored refresh-button">
+        <i class="material-icons">refresh</i>
+      </button>
+    </div>
+  </template>
+
+  <!-- Footer Container -->
   <div id="footer-container"></div>
+
+  <!-- Date Range Slider Template -->
+  <template id="date-range-slider-template">
+    <div class="date-range-slider-container mdl-shadow--2dp">
+      <div class="date-range-slider-title">Zeitraumauswahl</div>
+      <div class="slider-controls">
+        <div id="dateRangeSlider" class="slider-container"></div>
+        <div id="sliderDurationTooltip" class="slider-duration-tooltip"></div>
+        <div id="timeMarkers" class="time-markers"></div>
+      </div>
+      
+      <div class="timeframe-navigation">
+        <button id="prevPeriodBtn" class="timeframe-button tooltip">
+          <i class="material-icons">chevron_left</i>
+          <span class="tooltiptext">Vorheriger Zeitraum</span>
+        </button>
+        <div id="timeframeDisplay" class="timeframe-display">
+          Zeitraum: <span id="timeframeDuration"></span>
+        </div>
+        <button id="nextPeriodBtn" class="timeframe-button tooltip">
+          <i class="material-icons">chevron_right</i>
+          <span class="tooltiptext">Nächster Zeitraum</span>
+        </button>
+        
+        <div class="flex-spacer"></div>
+        
+        <div class="filter-buttons-container">
+          <!-- Error type filter button -->
+          <div class="error-type-filter-container">
+            <button id="error-type-filter-button" class="filter-button tooltip">
+              <i class="material-icons">error</i>
+              <span class="filter-button-label">Fehler-Filter</span>
+              <span class="tooltiptext">Filter nach Fehlertypen</span>
+            </button>
+          </div>
+          
+          <!-- Quick filter button -->
+          <div class="quick-filter-dropdown-container">
+            <button id="quick-filter-button" class="filter-button tooltip">
+              <i class="material-icons">filter_list</i>
+              <span class="filter-button-label">Schnell-Filter</span>
+              <span class="tooltiptext">Schnell-Filter für Zeitraum</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Date/Time Input Group Template -->
+  <template id="date-time-group-template">
+    <div class="filter-group">
+      <label class="filter-label" for=""></label>
+      <div class="date-time-input-group">
+        <div class="date-time-row">
+          <!-- Date Input with Controls -->
+          <div class="date-time-flex-container">
+            <input type="date" class="date-input" id="">
+            <div class="date-time-controls">
+              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="date" data-amount="1">
+                <i class="material-icons">keyboard_arrow_up</i>
+              </button>
+              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="date" data-amount="-1">
+                <i class="material-icons">keyboard_arrow_down</i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Time Input with Controls -->
+          <div class="date-time-flex-container">
+            <input type="time" class="time-input" id="">
+            <div class="date-time-controls">
+              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="time" data-amount="1">
+                <i class="material-icons">keyboard_arrow_up</i>
+              </button>
+              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" data-control="time" data-amount="-1">
+                <i class="material-icons">keyboard_arrow_down</i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Filter Buttons Container Template -->
+  <template id="filter-buttons-container-template">
+    <div class="filter-buttons-container"></div>
+  </template>
+  
+  <template id="filter-button-template">
+    <button class="filter-button tooltip">
+      <span class="filter-button-text"></span>
+      <span class="material-icons filter-button-icon">arrow_drop_down</span>
+      <span class="tooltiptext"></span>
+    </button>
+  </template>
+
+  <!-- Error Type Filter Dropdown Template -->
+  <template id="error-type-filter-dropdown-template">
+    <div class="error-type-dropdown-content filter-dropdown-content">
+      <div class="error-type-filter-list scrollable-filter-list">
+        <!-- Content will be populated dynamically -->
+      </div>
+    </div>
+  </template>
+
+  <!-- Quick Filter Dropdown Template -->
+  <template id="quick-filter-dropdown-template">
+    <div class="quick-filter-dropdown-content filter-dropdown-content">
+      <div class="quick-filter-list scrollable-filter-list">
+        <div class="quick-filter-dropdown-item filter-item" data-value="5" data-unit="minute">Letzte 5 Minuten</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="15" data-unit="minute">Letzte 15 Minuten</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="30" data-unit="minute">Letzte 30 Minuten</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="1" data-unit="hour">Letzte Stunde</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="3" data-unit="hour">Letzte 3 Stunden</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="6" data-unit="hour">Letzte 6 Stunden</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="12" data-unit="hour">Letzte 12 Stunden</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="1" data-unit="day">Letzter Tag</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="3" data-unit="day">Letzte 3 Tage</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="7" data-unit="day">Letzte Woche</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="14" data-unit="day">Letzte 2 Wochen</div>
+        <div class="quick-filter-dropdown-item filter-item" data-value="30" data-unit="day">Letzter Monat</div>
+      </div>
+    </div>
+  </template>
 
   <!-- Load modular components -->
   <script type="module">
-    // Import dashboard functions and expose them globally for onclick handlers
-    import * as dashboard from './scripts/dashboard.js';
+    // Import initialization functions from our modules
+    import { initGlobalExports } from './scripts/globalExports.js';
+    import { setupNavigationListeners } from './scripts/navigation.js';
+    import { initResponsiveDesign } from './scripts/responsiveDesign.js';
     
-    // Expose functions to window object for inline onclick handlers
-    window.toggleFilter = dashboard.toggleFilter;
-    window.toggleCard = dashboard.toggleCard;
-    window.applyQuickFilter = dashboard.applyQuickFilter;
-    window.applyDateFilter = dashboard.applyDateFilter;
-    window.resetDateFilter = dashboard.resetDateFilter;
-    window.shiftDateRange = dashboard.shiftDateRange;
-    window.adjustDate = dashboard.adjustDate;
-    window.adjustTime = dashboard.adjustTime;
-    window.searchErrors = function() {
-      const searchInput = document.getElementById('errorSearch');
-      if (searchInput) {
-        console.log('Searching for:', searchInput.value);
-        // Implement search functionality here
-      }
-    };
+    // Initialize all modules
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize global exports for backward compatibility
+      initGlobalExports();
+      
+      // Set up navigation event listeners
+      setupNavigationListeners();
+      
+      // Initialize responsive design features
+      initResponsiveDesign();
+      
+      console.log('All modules initialized successfully');
+    });
   </script>
 </body>
 </html>

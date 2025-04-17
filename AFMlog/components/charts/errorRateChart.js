@@ -26,6 +26,43 @@ export function createErrorRateChart(filteredStatusData, filteredErrorData, getA
   // Get appropriate aggregation settings based on the timeframe
   const aggregation = getAggregationInterval(startDate, endDate);
   
+  // Calculate the exact timeframe duration
+  const diffMs = endDate.getTime() - startDate.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const diffHours = diffMs / (1000 * 60 * 60);
+  
+  // Only force hourly aggregation when the timeframe is close to exactly 1 day
+  // This preserves sub-hour timeframes for shorter ranges
+  if (diffDays > 0.95 && diffDays <= 1.1) {
+    console.log('Forcing hourly aggregation for error rate chart (~1-day timeframe)');
+    aggregation.interval = 'hour';
+    aggregation.roundFn = (date) => {
+      const rounded = new Date(date);
+      rounded.setMinutes(0, 0, 0);
+      return rounded;
+    };
+    aggregation.format = (date) => {
+      return date.getHours() + ':00';
+    };
+  }
+  // Add a 5-minute-level aggregation for short timeframes (less than 6 hours)
+  else if (diffHours < 6 && diffMs > 0) {
+    console.log('Using 5-minute-level aggregation for error rate chart (short timeframe)');
+    aggregation.interval = '5min';
+    aggregation.roundFn = (date) => {
+      const rounded = new Date(date);
+      const minutes = rounded.getMinutes();
+      // Round to the nearest 5 minutes
+      rounded.setMinutes(Math.floor(minutes / 5) * 5, 0, 0);
+      return rounded;
+    };
+    aggregation.format = (date) => {
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    };
+  }
+  
   // Sort status data by timestamp
   const sortedStatusData = [...filteredStatusData].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   
@@ -117,6 +154,44 @@ export function createErrorRateChart(filteredStatusData, filteredErrorData, getA
   const labels = sortedKeys.map(key => intervalMap[key].displayLabel);
   const data = sortedKeys.map(key => intervalMap[key].errorRate);
   
+  // Calculate safe max value for axis scaling
+  const maxValue = data.length > 0 ? Math.max(...data.filter(val => !isNaN(val))) : 0;
+  const suggestedMax = Math.min(100, maxValue > 0 ? maxValue * 1.1 : 10);
+  const precision = maxValue < 1 ? 2 : maxValue < 10 ? 1 : 0;
+  
+  // Define common chart options to ensure consistency
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 500,
+      easing: 'easeOutQuad'
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        suggestedMax: suggestedMax,
+        grace: '5%',
+        ticks: {
+          precision: precision,
+          callback: function(value) {
+            return value + '%';
+          }
+        },
+        title: {
+          display: true,
+          text: 'Fehlerrate (%)'
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top'
+      }
+    }
+  };
+  
   // Create or update chart
   try {
     // Check if the chart instance exists and is valid
@@ -124,7 +199,26 @@ export function createErrorRateChart(filteredStatusData, filteredErrorData, getA
       // Update existing chart
       window.errorRateChart.data.labels = labels;
       window.errorRateChart.data.datasets[0].data = data;
-      window.errorRateChart.update();
+      
+      // Force y-axis recalculation based on new data
+      window.errorRateChart.options.scales.y.suggestedMax = suggestedMax;
+      window.errorRateChart.options.scales.y.ticks.precision = precision;
+      
+      // Force a complete redraw with animation
+      window.errorRateChart.update({
+        duration: 300,
+        easing: 'easeOutQuad',
+        reset: false // Don't reset animations in progress
+      });
+      
+      console.log('Updated error rate chart with new axis settings:', {
+        labels: labels.length,
+        dataPoints: data.length,
+        maxValue,
+        suggestedMax,
+        precision
+      });
+      
       return window.errorRateChart;
     } else {
       // If chart exists but is in an invalid state, clean up the canvas
@@ -143,91 +237,75 @@ export function createErrorRateChart(filteredStatusData, filteredErrorData, getA
         }
       }
       
-      // Create new chart
-      window.errorRateChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Fehlerrate (%)',
-            data: data,
-            backgroundColor: 'rgba(255, 152, 0, 0.2)',
-            borderColor: 'rgba(255, 152, 0, 1)',
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              // Use adaptive scaling instead of fixed max
-              suggestedMax: Math.min(100, Math.max(...data) * 1.1), // 10% headroom above max value
-              // Add grace percentage for better visualization
-              grace: '5%',
-              // Use more appropriate ticks for the data range
-              ticks: {
-                // Use precision based on data range
-                precision: Math.max(...data) < 1 ? 2 : Math.max(...data) < 10 ? 1 : 0,
-                // Use callback to format ticks with % symbol
-                callback: function(value) {
-                  return value + '%';
-                }
-              },
-              title: {
-                display: true,
-                text: 'Fehlerrate (%)'
-              }
-            }
-          }
+      // Create new chart with a slight delay to ensure DOM is ready
+      setTimeout(() => {
+        window.errorRateChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Fehlerrate (%)',
+              data: data,
+              backgroundColor: 'rgba(255, 152, 0, 0.2)',
+              borderColor: 'rgba(255, 152, 0, 1)',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: chartOptions
+        });
+        
+        // Force an immediate update to ensure axes are properly initialized
+        if (window.errorRateChart) {
+          window.errorRateChart.update();
         }
-      });
-      return window.errorRateChart;
+        
+        console.log('Created new error rate chart with axis settings:', {
+          labels: labels.length,
+          dataPoints: data.length,
+          maxValue,
+          suggestedMax,
+          precision
+        });
+      }, 50);
+      
+      // Return a placeholder until the real chart is created
+      return {};
     }
   } catch (error) {
     console.warn('Error handling existing chart:', error);
     window.errorRateChart = null;
     
-    // Create new chart as fallback
-    window.errorRateChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Fehlerrate (%)',
-          data: data,
-          backgroundColor: 'rgba(255, 152, 0, 0.2)',
-          borderColor: 'rgba(255, 152, 0, 1)',
-          borderWidth: 2,
-          tension: 0.3,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-            // Use adaptive scaling instead of fixed max
-            suggestedMax: Math.min(100, Math.max(...data) * 1.1), // 10% headroom above max value
-            // Add grace percentage for better visualization
-            grace: '5%',
-            // Use more appropriate ticks for the data range
-            ticks: {
-              // Use precision based on data range
-              precision: Math.max(...data) < 1 ? 2 : Math.max(...data) < 10 ? 1 : 0,
-              callback: function(value) {
-                return value + '%';
-              }
-            }
-          }
+    // Create new chart as fallback with a slight delay
+    setTimeout(() => {
+      try {
+        window.errorRateChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Fehlerrate (%)',
+              data: data,
+              backgroundColor: 'rgba(255, 152, 0, 0.2)',
+              borderColor: 'rgba(255, 152, 0, 1)',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: chartOptions
+        });
+        
+        // Force an immediate update to ensure axes are properly initialized
+        if (window.errorRateChart) {
+          window.errorRateChart.update();
         }
+      } catch (innerError) {
+        console.error('Failed to create fallback chart:', innerError);
       }
-    });
-    return window.errorRateChart;
+    }, 50);
+    
+    return {};
   }
 }

@@ -92,12 +92,72 @@ export function createErrorTrendChart(filteredErrorData, knownErrorPatterns, for
   
   // Create or update chart
   try {
+    // Calculate safe max value for axis scaling
+    let maxValue = 0;
+    datasets.forEach(dataset => {
+      const datasetMax = Math.max(...dataset.data.filter(val => !isNaN(val)));
+      maxValue = Math.max(maxValue, datasetMax);
+    });
+    
+    const suggestedMax = maxValue > 0 ? maxValue * 1.1 : 5;
+    
+    // Define common chart options to ensure consistency
+    const chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 500,
+        easing: 'easeOutQuad'
+      },
+      scales: {
+        x: {
+          stacked: true
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          suggestedMax: suggestedMax,
+          grace: '5%',
+          ticks: {
+            precision: 0
+          },
+          title: {
+            display: true,
+            text: 'Anzahl der Fehler'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        }
+      }
+    };
+    
     // Check if the chart instance exists and is valid
     if (window.errorTrendChart && typeof window.errorTrendChart.update === 'function') {
       // Update existing chart
       window.errorTrendChart.data.labels = labels;
       window.errorTrendChart.data.datasets = datasets;
-      window.errorTrendChart.update();
+      
+      // Force y-axis recalculation based on new data
+      window.errorTrendChart.options.scales.y.suggestedMax = suggestedMax;
+      
+      // Force a complete redraw with animation
+      window.errorTrendChart.update({
+        duration: 300,
+        easing: 'easeOutQuad',
+        reset: false // Don't reset animations in progress
+      });
+      
+      console.log('Updated error trend chart with new axis settings:', {
+        labels: labels.length,
+        datasets: datasets.length,
+        maxValue,
+        suggestedMax
+      });
+      
       return window.errorTrendChart;
     } else {
       // If chart exists but is in an invalid state, clean up the canvas
@@ -116,60 +176,58 @@ export function createErrorTrendChart(filteredErrorData, knownErrorPatterns, for
         }
       }
       
-      // Create new chart
-      window.errorTrendChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: datasets
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              stacked: true
-            },
-            y: {
-              stacked: true,
-              beginAtZero: true,
-              ticks: {
-                precision: 0
-              }
-            }
-          }
+      // Create new chart with a slight delay to ensure DOM is ready
+      setTimeout(() => {
+        window.errorTrendChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: datasets
+          },
+          options: chartOptions
+        });
+        
+        // Force an immediate update to ensure axes are properly initialized
+        if (window.errorTrendChart) {
+          window.errorTrendChart.update();
         }
-      });
-      return window.errorTrendChart;
+        
+        console.log('Created new error trend chart with axis settings:', {
+          labels: labels.length,
+          datasets: datasets.length,
+          maxValue,
+          suggestedMax
+        });
+      }, 50);
+      
+      // Return a placeholder until the real chart is created
+      return {};
     }
   } catch (error) {
     console.warn('Error handling existing chart:', error);
     window.errorTrendChart = null;
     
-    // Create new chart as fallback
-    window.errorTrendChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: datasets
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            stacked: true
+    // Create new chart as fallback with a slight delay
+    setTimeout(() => {
+      try {
+        window.errorTrendChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: datasets
           },
-          y: {
-            stacked: true,
-            beginAtZero: true,
-            ticks: {
-              precision: 0
-            }
-          }
+          options: chartOptions
+        });
+        
+        // Force an immediate update to ensure axes are properly initialized
+        if (window.errorTrendChart) {
+          window.errorTrendChart.update();
         }
+      } catch (innerError) {
+        console.error('Failed to create fallback chart:', innerError);
       }
-    });
-    return window.errorTrendChart;
+    }, 50);
+    
+    return {};
   }
 }

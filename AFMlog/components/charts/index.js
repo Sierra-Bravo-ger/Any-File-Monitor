@@ -12,6 +12,8 @@ import { createErrorRateChart } from './errorRateChart.js';
 import { createErrorTrendChart } from './errorTrendChart.js';
 import { createErrorsByWeekdayChart } from './errorsByWeekdayChart.js';
 import { createErrorTypePieChart } from './errorTypePieChart.js';
+import { createErrorHeatmapChart } from './errorHeatmapChart.js';
+import WidgetA from '../WidgetA.js';
 
 // Export a registry of all chart functions
 const chartRegistry = {
@@ -22,8 +24,26 @@ const chartRegistry = {
   errorRateChart: createErrorRateChart,
   errorTrendChart: createErrorTrendChart,
   errorsByWeekdayChart: createErrorsByWeekdayChart,
-  errorTypePieChart: createErrorTypePieChart
+  errorTypePieChart: createErrorTypePieChart,
+  errorHeatmapChart: createErrorHeatmapChart,
+  healthGauge: initHealthGauge
 };
+
+/**
+ * Initialize the health gauge widget
+ * @param {Object} data - Optional data to initialize the gauge with
+ * @returns {Object} - The WidgetA instance
+ */
+export function initHealthGauge(data) {
+  const widgetA = new WidgetA('healthCard');
+  
+  // If data is provided, update the widget
+  if (data && data.kpis) {
+    // This will be handled by the updateHealthWidget function in healthGauge.js
+  }
+  
+  return widgetA;
+}
 
 /**
  * Initialize or update a specific chart
@@ -49,6 +69,9 @@ export function initAllCharts(data) {
   });
 }
 
+// Import chart manager functions
+import { updateCharts, getAggregationInterval, createTimeIntervals, groupDataByTimeInterval } from './chartManager.js';
+
 // Export individual chart functions for direct access
 export {
   createErrorsByHourChart,
@@ -58,5 +81,11 @@ export {
   createErrorRateChart,
   createErrorTrendChart,
   createErrorsByWeekdayChart,
-  createErrorTypePieChart
+  createErrorTypePieChart,
+  createErrorHeatmapChart,
+  // Export chart manager functions
+  updateCharts,
+  getAggregationInterval,
+  createTimeIntervals,
+  groupDataByTimeInterval
 };

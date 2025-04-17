@@ -1,0 +1,67 @@
+/* Tab Animation Styles */
+
+/* Base styles for tab containers */
+.tab-container {
+  display: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Active tab with animation */
+.tab-container.active {
+  display: block;
+  animation: fadeInUp 0.3s ease forwards;
+}
+
+/* Fade in and slide up animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Active tab styles */
+.mdl-navigation__link.active {
+  background-color: rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+/* Active indicator for navigation links */
+.mdl-navigation__link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--accent-color);
+  animation: slideIn 0.3s ease forwards;
+}
+
+/* Slide in animation for the active indicator */
+@keyframes slideIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Ensure smooth transitions between tabs */
+.mdl-layout__content {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Improve tab indicator in desktop navigation */
+.mdl-layout__tab-bar-container .mdl-layout__tab.is-active::after {
+  animation: slideIn 0.3s ease forwards;
+}

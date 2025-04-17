@@ -1,146 +1,79 @@
 /**
  * Sidebar component for the AFM Dashboard
- * Provides the date filter controls
+ * Provides the date filter controls and mobile navigation
+ * Note: HTML structure is now defined directly in index.html
  */
 class Sidebar {
   constructor(containerId) {
-    this.container = document.getElementById(containerId);
-    this.render();
+    // No longer need to store container reference since HTML is in index.html
+    this.activeTab = 'overview'; // Default active tab
+    this.setupEventListeners();
   }
 
   render() {
-    this.container.innerHTML = `
-      <div class="filter-title">Zeitraumfilter</div>
-      <button id="toggleFilterBtn" class="mdl-button mdl-js-button mdl-button--icon" title="Filter ein-/ausklappen" onclick="toggleFilter()">
-        <i class="material-icons">expand_less</i>
-      </button>
-    `;
-    
-    // Render the filter content
-    const filterContent = document.getElementById('filterContent');
-    if (filterContent) {
-      this.renderFilterContent(filterContent);
-    }
+    // HTML is now directly in index.html, so this method is just for compatibility
+    console.log('Sidebar render method called, but HTML is now in index.html');
   }
 
   renderFilterContent(container) {
-    container.innerHTML = `
-      <!-- Date Range Slider -->
-      <div class="date-range-slider-container mdl-shadow--2dp">
-        <div class="date-range-slider-title">Zeitraumauswahl</div>
-        <div class="slider-controls">
-          <div id="dateRangeSlider" class="slider-container"></div>
-          <div class="time-markers" id="timeMarkers"></div>
-        </div>
+    // HTML is now directly in index.html, so this method is just for compatibility
+    console.log('Sidebar renderFilterContent method called, but HTML is now in index.html');
+  }
+
+  setupEventListeners() {
+    // Setup any event listeners that need to be initialized by JavaScript
+    // This method can remain to handle any dynamic behavior
+    
+    // Example: Add event listener for tab switching if needed
+    document.querySelectorAll('.mdl-navigation__link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        const tabId = e.target.getAttribute('href').substring(1);
+        this.switchTab(tabId);
+      });
+    });
+  }
+
+  switchTab(tabId) {
+    // Update active tab
+    this.activeTab = tabId;
+    
+    // Get the current active tab before switching
+    const currentActiveTab = document.querySelector('.tab-container.active');
+    
+    // Prepare the new tab for animation
+    const newTab = document.getElementById(tabId);
+    if (!newTab) return;
+    
+    // If there's a currently active tab, animate it out first
+    if (currentActiveTab && currentActiveTab !== newTab) {
+      // Add a class for the exit animation
+      currentActiveTab.style.opacity = '0';
+      currentActiveTab.style.transform = 'translateY(10px)';
+      
+      // After a short delay, hide the old tab and show the new one
+      setTimeout(() => {
+        // Hide the old tab
+        currentActiveTab.classList.remove('active');
         
-        <div class="timeframe-navigation">
-          <button id="prevPeriodBtn" class="timeframe-button" onclick="shiftDateRange(-1)">
-            <i class="material-icons">chevron_left</i>
-          </button>
-          <div id="timeframeDisplay" class="timeframe-display">
-            Zeitraum: <span id="timeframeDuration"></span>
-          </div>
-          <button id="nextPeriodBtn" class="timeframe-button" onclick="shiftDateRange(1)">
-            <i class="material-icons">chevron_right</i>
-          </button>
-          
-          <!-- Quick filter button positioned at the right side -->
-          <div class="quick-filter-dropdown-container">
-            <button id="quick-filter-button" class="mdl-button mdl-js-button mdl-button--icon" title="Schnell-Filter" onclick="toggleQuickFilterDropdown(event)">
-              <i class="material-icons">filter_list</i>
-            </button>
-            <div class="quick-filter-dropdown-content" id="quickFilterDropdown">
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(5, 'minute'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 5 Minuten</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(15, 'minute'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 15 Minuten</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(30, 'minute'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 30 Minuten</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(60, 'minute'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 60 Minuten</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(4, 'hour'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 4 Stunden</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(8, 'hour'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 8 Stunden</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(1, 'day'); document.getElementById('quickFilterDropdown').style.display='none';">Letzter Tag</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(7, 'day'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte Woche</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(14, 'day'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 2 Wochen</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(30, 'day'); document.getElementById('quickFilterDropdown').style.display='none';">Letzter Monat</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(90, 'day'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 3 Monate</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(180, 'day'); document.getElementById('quickFilterDropdown').style.display='none';">Letzte 6 Monate</div>
-              <div class="quick-filter-dropdown-item" onclick="applyQuickFilter(365, 'day'); document.getElementById('quickFilterDropdown').style.display='none';">Letztes Jahr</div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Quick filter buttons removed in favor of the dropdown menu -->
-      </div>
-      
-      <!-- Start Date and Time -->
-      <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px; justify-content: flex-start;">
-        <label class="filter-label" style="color: white; margin-top: 0;">Startdatum und -zeit</label>
-        <div class="date-time-input-group">
-          <div class="date-time-flex-container">
-            <!-- Date Input with Controls -->
-            <input type="date" id="startDate" class="date-input">
-            <div class="date-time-controls">
-              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" onclick="adjustDate('startDate', 1, 'day')">
-                <i class="material-icons">keyboard_arrow_up</i>
-              </button>
-              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" onclick="adjustDate('startDate', -1, 'day')">
-                <i class="material-icons">keyboard_arrow_down</i>
-              </button>
-            </div>
-          </div>
-          
-          <div class="date-time-flex-container">
-            <!-- Time Input with Controls -->
-            <input type="time" id="startTime" class="time-input">
-            <div class="date-time-controls">
-              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" onclick="adjustTime('startTime', 1, 'hour')">
-                <i class="material-icons">keyboard_arrow_up</i>
-              </button>
-              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" onclick="adjustTime('startTime', -1, 'hour')">
-                <i class="material-icons">keyboard_arrow_down</i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- End Date and Time -->
-      <div class="filter-group" style="display: flex; flex-direction: column; margin: 8px 16px; justify-content: flex-start;">
-        <label class="filter-label" style="color: white; margin-top: 0;">Enddatum und -zeit</label>
-        <div class="date-time-input-group">
-          <div class="date-time-flex-container">
-            <!-- Date Input with Controls -->
-            <input type="date" id="endDate" class="date-input">
-            <div class="date-time-controls">
-              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" onclick="adjustDate('endDate', 1, 'day')">
-                <i class="material-icons">keyboard_arrow_up</i>
-              </button>
-              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" onclick="adjustDate('endDate', -1, 'day')">
-                <i class="material-icons">keyboard_arrow_down</i>
-              </button>
-            </div>
-          </div>
-          
-          <div class="date-time-flex-container">
-            <!-- Time Input with Controls -->
-            <input type="time" id="endTime" class="time-input">
-            <div class="date-time-controls">
-              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" onclick="adjustTime('endTime', 1, 'hour')">
-                <i class="material-icons">keyboard_arrow_up</i>
-              </button>
-              <button class="mdl-button mdl-js-button mdl-button--icon date-time-control-btn" onclick="adjustTime('endTime', -1, 'hour')">
-                <i class="material-icons">keyboard_arrow_down</i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Filter Actions -->
-      <div class="filter-actions">
-        <button id="resetFilterBtn" class="mdl-button mdl-js-button" onclick="resetDateFilter()">Zurücksetzen</button>
-        <button id="applyFilterBtn" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent" onclick="applyDateFilter()">Anwenden</button>
-      </div>
-    `;
+        // Show and animate in the new tab
+        newTab.classList.add('active');
+      }, 150); // Short delay for a smooth transition
+    } else {
+      // If no current active tab, just show the new one
+      newTab.classList.add('active');
+    }
+    
+    // Update navigation links with animation
+    document.querySelectorAll('.mdl-navigation__link').forEach(link => {
+      const linkTabId = link.getAttribute('href').substring(1);
+      if (linkTabId === tabId) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
   }
 }
 
+// Export the component
 export default Sidebar;

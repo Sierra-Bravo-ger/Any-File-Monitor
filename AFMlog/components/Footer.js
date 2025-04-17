@@ -10,21 +10,32 @@ class Footer {
   }
 
   render() {
-    // Render the last update element
-    const lastUpdateDiv = document.getElementById('lastUpdate');
-    if (lastUpdateDiv) {
-      lastUpdateDiv.innerHTML = 'Letzte Aktualisierung: --.--.---- --:--:--';
+    // Clear the container
+    this.container.innerHTML = '';
+    
+    // Use the template to create the footer buttons
+    const template = document.getElementById('footer-buttons-template');
+    if (!template) {
+      console.error('Footer buttons template not found');
+      return;
     }
     
-    // Render the refresh button
-    this.container.innerHTML = `
-      <button class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored refresh-button" onclick="loadAllData()">
-        <i class="material-icons">refresh</i>
-      </button>
-    `;
+    // Clone the template content and add it to the container
+    const footerContent = template.content.cloneNode(true);
+    this.container.appendChild(footerContent);
+    
+    // Register MDL components
+    if (typeof componentHandler !== 'undefined') {
+      // Find and upgrade all MDL elements within the footer
+      const mdlElements = this.container.querySelectorAll('.mdl-button');
+      mdlElements.forEach(element => {
+        componentHandler.upgradeElement(element);
+      });
+    }
   }
 
   setupEventListeners() {
+    // Set up refresh button
     const refreshButton = this.container.querySelector('.refresh-button');
     if (refreshButton) {
       // Replace the onclick attribute with an event listener
@@ -35,17 +46,17 @@ class Footer {
           loadAllData();
         }
         
-        // Add animation to button
-        refreshButton.style.transition = 'transform 0.5s';
-        refreshButton.style.transform = 'rotate(360deg)';
+        // Add spinning class to trigger CSS animation
+        refreshButton.classList.add('spinning');
         
-        // Reset animation after completion
+        // Remove spinning class after animation completes
         setTimeout(() => {
-          refreshButton.style.transition = '';
-          refreshButton.style.transform = '';
-        }, 500);
+          refreshButton.classList.remove('spinning');
+        }, 1200);
       });
     }
+    
+    // Apply and reset filter buttons removed - filters now apply dynamically
   }
 
   // Public method to update the last update timestamp

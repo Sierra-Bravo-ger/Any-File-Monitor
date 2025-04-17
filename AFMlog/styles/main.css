@@ -1,0 +1,36 @@
+/* 
+ * AFM Dashboard Main CSS
+ * This file imports all CSS modules in the correct order
+ */
+
+/* Base styles */
+@import 'base/variables.css';
+@import 'base/reset.css';
+@import 'base/typography.css';
+@import 'base/utility.css';
+@import 'base/animations.css';
+
+/* Layout */
+@import 'layout/grid.css';
+@import 'layout/header.css';
+@import 'layout/footer.css';
+@import 'layout/accordion.css';
+
+/* Components */
+@import 'components/buttons.css';
+@import 'components/cards.css';
+@import 'components/tooltips.css';
+@import 'components/dropdowns.css';
+@import 'components/filters.css';
+@import 'components/navigation.css';
+@import 'components/patternBadges.css';
+@import 'components/tables.css';
+@import 'components/charts.css';
+@import 'components/forms.css';
+@import 'components/modals.css';
+@import 'components/loaders.css';
+
+/* 
+ * Note: This file replaces the need for multiple separate CSS imports in the HTML.
+ * All styles are now organized in a modular, maintainable structure.
+ */

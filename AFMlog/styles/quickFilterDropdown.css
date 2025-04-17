@@ -1,0 +1,101 @@
+/**
+ * Quick Filter Dropdown Styles
+ */
+
+/* Container for the quick filter dropdown */
+.quick-filter-dropdown-container {
+  position: relative;
+  display: inline-block;
+  margin-right: 12px;
+}
+
+/* Dropdown content */
+.quick-filter-dropdown-content {
+  display: none;
+  position: absolute;
+  width: 200px;
+  max-height: 300px;
+  overflow-y: auto !important;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+  padding: 12px;
+  
+  /* Animation */
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+/* Quick filter list - dedicated scrollable container */
+.quick-filter-list {
+  max-height: 300px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 5px;
+  margin-bottom: 8px;
+  display: block !important;
+}
+
+/* Individual dropdown items */
+.quick-filter-dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.quick-filter-dropdown-item:hover {
+  background-color: var(--hover-color, rgba(0, 0, 0, 0.05));
+}
+
+/* Dark mode support */
+[data-theme="dark"] .quick-filter-dropdown-content {
+  background-color: var(--card-bg-color);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .quick-filter-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Visible state - using !important to override any inline styles */
+.quick-filter-dropdown-content.visible {
+  display: block !important;
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  visibility: visible !important;
+}
+
+/* Quick filter button active state */
+#quick-filter-button.active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] #quick-filter-button.active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Custom scrollbar styling */
+.quick-filter-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.quick-filter-list::-webkit-scrollbar-track {
+  background: var(--card-bg-color, #f1f1f1);
+  border-radius: 4px;
+}
+
+.quick-filter-list::-webkit-scrollbar-thumb {
+  background: var(--border-color, #ccc);
+  border-radius: 4px;
+}
+
+.quick-filter-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color, #2196F3);
+}

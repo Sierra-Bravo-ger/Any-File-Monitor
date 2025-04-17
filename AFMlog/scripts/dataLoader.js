@@ -22,7 +22,25 @@ export function loadCSV(filename, options = {}) {
       dynamicTyping: false, // Don't auto-convert to numbers to preserve date strings
       skipEmptyLines: true,
       delimiter: ';', // German CSV files use semicolon as delimiter
+      transformHeader: (header) => header, // Preserve original case of headers
     };
+    
+    // Special handling for error log file which might have complex content
+    if (filename === './AFM_error_log.csv') {
+      defaultOptions.encoding = 'UTF-8';
+      defaultOptions.comments = false; // Don't treat any character as a comment
+      defaultOptions.quoteChar = '"'; // Use double quotes for quoting
+      defaultOptions.escapeChar = '\\'; // Use backslash for escaping
+      defaultOptions.skipEmptyLines = 'greedy'; // Skip various forms of empty lines
+      defaultOptions.transformHeader = (header) => header.trim(); // Trim whitespace from headers but preserve case
+      
+      // Add a transform function to clean up problematic data
+      defaultOptions.transform = (value, field) => {
+        if (value === undefined || value === null) return '';
+        // Return the value as a string with any problematic characters handled
+        return String(value).replace(/[\r\n]+/g, ' ').trim();
+      };
+    }
     
     // Merge default options with user-provided options
     const papaOptions = { ...defaultOptions, ...options };
@@ -32,18 +50,28 @@ export function loadCSV(filename, options = {}) {
       console.log(`Loaded ${filename}:`, results.data.length, 'rows');
       
       // Debug the CSV parsing results for input details file
-      if (filename === './AFM_input_details.csv') {
-        console.log('CSV PARSING DEBUG for input details:');
+      if (filename === './AFM_input_details.csv' || filename === './AFM_error_log.csv') {
+        console.log(`CSV PARSING DEBUG for ${filename}:`);
         console.log('Parser options used:', papaOptions);
         console.log('Meta information:', results.meta);
         
         if (results.data.length > 0) {
           console.log('First row keys:', Object.keys(results.data[0]));
           console.log('First row values:', Object.values(results.data[0]));
-          console.log('First row full object:', JSON.stringify(results.data[0], null, 2));
+          
+          // Only log the full object for input details to avoid excessive logging
+          if (filename === './AFM_input_details.csv') {
+            console.log('First row full object:', JSON.stringify(results.data[0], null, 2));
+          }
           
           // Check if there are any unexpected columns
-          const expectedColumns = ['Zeitpunkt', 'Anzahl', 'Dateinamen als String'];
+          let expectedColumns = [];
+          if (filename === './AFM_input_details.csv') {
+            expectedColumns = ['Zeitpunkt', 'Anzahl', 'Dateinamen als String'];
+          } else if (filename === './AFM_error_log.csv') {
+            expectedColumns = ['Zeitpunkt', 'ErrorDatei', 'Fehlermeldung', 'EXTDatei', 'EXTInhalt'];
+          }
+          
           const actualColumns = Object.keys(results.data[0]);
           
           const unexpectedColumns = actualColumns.filter(col => !expectedColumns.includes(col));
@@ -58,12 +86,17 @@ export function loadCSV(filename, options = {}) {
     
     papaOptions.error = function(error) {
       console.error(`Error loading ${filename}:`, error);
-      // Don't use mock data, just return an empty array
-      console.warn(`Failed to load ${filename}, returning empty data`);
-      resolve([]);
+      
+      // For the error log file, provide a fallback if parsing fails
+      if (filename === './AFM_error_log.csv') {
+        console.warn('Using fallback empty data for error log due to parsing error');
+        resolve([]);
+      } else {
+        reject(error);
+      }
     };
     
-    // Use Papa Parse to load and parse the CSV file
+    // Parse the CSV file
     Papa.parse(csvPath, papaOptions);
   });
 }

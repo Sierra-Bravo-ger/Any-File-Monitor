@@ -44,7 +44,16 @@ export function updateTopErrorsList(filteredErrorData, knownErrorPatterns, getCh
   const topErrors = sortedErrors.slice(0, 10);
   
   if (topErrors.length === 0) {
-    topErrorsContainer.innerHTML = '<div class="no-data">Keine Fehlerdaten verfügbar</div>';
+    // Clear container
+    topErrorsContainer.innerHTML = '';
+    
+    // Create no-data element using DOM construction
+    const noDataElement = document.createElement('div');
+    noDataElement.className = 'no-data';
+    noDataElement.textContent = 'Keine Fehlerdaten verfügbar';
+    
+    // Append to container
+    topErrorsContainer.appendChild(noDataElement);
     return;
   }
   
@@ -63,6 +72,8 @@ export function updateTopErrorsList(filteredErrorData, knownErrorPatterns, getCh
     
     const errorItem = document.createElement('div');
     errorItem.className = 'error-item';
+    // Set animation delay based on index
+    errorItem.style.setProperty('--index', index);
     
     const errorBar = document.createElement('div');
     errorBar.className = 'error-bar';
@@ -71,12 +82,39 @@ export function updateTopErrorsList(filteredErrorData, knownErrorPatterns, getCh
     
     const errorLabel = document.createElement('div');
     errorLabel.className = 'error-label';
-    errorLabel.textContent = `${error.type}: ${error.count} (${percentage}%)`;
+    
+    // Split the label into type and count for better styling
+    const errorType = document.createElement('span');
+    errorType.className = 'error-type';
+    errorType.textContent = truncateText(error.type, 30); // Limit length for better display
+    
+    const errorCount = document.createElement('span');
+    errorCount.className = 'error-count';
+    errorCount.textContent = `${error.count} (${percentage}%)`;
+    
+    errorLabel.appendChild(errorType);
+    errorLabel.appendChild(errorCount);
     
     errorItem.appendChild(errorBar);
     errorItem.appendChild(errorLabel);
     topErrorsContainer.appendChild(errorItem);
+    
+    // Add tooltip for long error types
+    if (error.type.length > 30) {
+      errorType.title = error.type;
+    }
   });
   
   console.log('Top errors updated:', topErrors);
+}
+
+/**
+ * Helper function to truncate text with ellipsis
+ * @param {string} text - Text to truncate
+ * @param {number} maxLength - Maximum length before truncation
+ * @returns {string} - Truncated text
+ */
+function truncateText(text, maxLength) {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 }

@@ -1,0 +1,105 @@
+/**
+ * Styles for auto-refresh controls
+ */
+
+/* Container for auto-refresh controls */
+.auto-refresh-container {
+  display: flex;
+  align-items: center;
+  margin-right: 16px;
+}
+
+/* Label for auto-refresh toggle */
+.auto-refresh-label {
+  margin-right: 8px;
+  color: var(--header-text-color);
+  font-size: 14px;
+}
+
+/* Container for the refresh interval dropdown */
+.refresh-interval-container {
+  position: relative;
+  margin-left: 8px;
+}
+
+/* Refresh interval button */
+#refreshIntervalButton {
+  color: var(--header-text-color);
+}
+
+/* Custom styling for the refresh interval menu */
+.refresh-interval-container .mdl-menu {
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  box-shadow: var(--card-shadow);
+}
+
+.refresh-interval-container .mdl-menu__item {
+  font-size: 14px;
+  height: 36px;
+  line-height: 36px;
+  color: var(--text-color);
+}
+
+.refresh-interval-container .mdl-menu__item:hover {
+  background-color: var(--hover-color);
+}
+
+/* Custom interval option styling */
+.refresh-interval-container .mdl-menu__item.custom-interval {
+  border-top: 1px solid var(--border-color);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+/* Custom interval dialog styling */
+#customIntervalDialog {
+  width: 300px;
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  border-radius: 4px;
+  box-shadow: var(--card-shadow);
+}
+
+#customIntervalDialog .mdl-dialog__title {
+  color: var(--text-color);
+}
+
+#customIntervalDialog .mdl-dialog__content {
+  padding: 16px 24px 0;
+  color: var(--text-color);
+}
+
+#customIntervalDialog .mdl-textfield {
+  width: 100%;
+}
+
+#customIntervalDialog .mdl-textfield__input {
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+#customIntervalDialog .mdl-textfield__label {
+  color: var(--secondary-text-color);
+}
+
+#customIntervalDialog .mdl-button {
+  color: var(--accent-color);
+}
+
+/* MDL Tooltip styling */
+.mdl-tooltip {
+  background-color: var(--tooltip-bg);
+  color: var(--tooltip-text);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .auto-refresh-container {
+    margin-right: 8px;
+  }
+  
+  .auto-refresh-label {
+    display: none;
+  }
+}

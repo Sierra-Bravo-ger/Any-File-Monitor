@@ -1,0 +1,80 @@
+/* Main accordion container that slides down from the header */
+.accordion-filter {
+  position: fixed;
+  top: -500px; /* Start above the viewport */
+  left: 0;
+  right: 0;
+  z-index: 5; /* Lower z-index to ensure it doesn't cover the header */
+  background-color: var(--card-bg-color);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transition: top 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  max-height: 500px; /* Fixed height that matches the margin-top in .page-content.filter-expanded */
+  overflow-y: auto;
+  overflow-x: visible; /* Allow dropdowns to extend outside */
+  width: calc(100% - var(--scrollbar-width, 17px)); /* Account for scrollbar width */
+  box-sizing: border-box;
+}
+
+/* When the filter is expanded */
+.accordion-filter.expanded {
+  top: 64px; /* Height of the header */
+}
+
+/* Responsive adjustments for mobile devices */
+@media screen and (max-width: 768px) {
+  .accordion-filter {
+    top: -700px; /* Larger starting position for mobile */
+    max-height: 700px; /* Larger max-height for mobile */
+  }
+  
+  .page-content.filter-expanded {
+    margin-top: 700px; /* Larger margin for mobile */
+  }
+}
+
+/* Toggle button for the accordion */
+.accordion-toggle-button {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 10; /* Ensure it's above other elements */
+  transition: transform 0.3s ease;
+}
+
+.accordion-toggle-button.expanded {
+  transform: rotate(180deg);
+}
+
+/* Filter header */
+.accordion-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: var(--accent-color);
+  color: white;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.accordion-filter-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Filter content container */
+.accordion-filter-content {
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Adjust main content to make room for the filter when expanded */
+.page-content {
+  transition: margin-top 0.3s ease-in-out;
+  will-change: margin-top; /* Optimize for animation performance */
+}
+
+.page-content.filter-expanded {
+  margin-top: 400px; /* Fixed margin to make room for the filter - adjust as needed */
+}

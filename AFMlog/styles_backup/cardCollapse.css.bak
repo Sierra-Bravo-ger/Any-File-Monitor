@@ -1,0 +1,136 @@
+/* Card Collapse Animation Styles */
+.chart-container, .small-chart-container {
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Ensure all cards collapse properly */
+.mdl-card__supporting-text {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Target all elements inside supporting text for smooth collapse */
+.mdl-card__supporting-text > * {
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Class-based card collapse styles */
+.card-collapsed .mdl-card__supporting-text {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-height: 0 !important;
+  min-height: 0 !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  opacity: 0;
+  /* Don't use display:none here - let the JS handle that after animation */
+}
+
+/* When card is collapsed using display:none */
+.mdl-card__supporting-text[style*="display: none"] {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+/* For non-chart content */
+#topErrorsList, .error-list, .data-table-container {
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Toggle button styles - consolidated from styles.css */
+.toggle-card-btn {
+  /* Appearance */
+  color: var(--card-title-text-color);
+  background-color: transparent;
+  
+  /* Positioning */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  
+  /* Animation */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center center;
+}
+
+/* Use a pseudo-element approach for perfect rotation */
+.toggle-card-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.toggle-card-btn i {
+  /* Hide the actual icon text */
+  color: transparent;
+  font-size: 0;
+}
+
+/* Create a pseudo-element that we can rotate perfectly */
+.toggle-card-btn::after {
+  content: 'expand_more';
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  
+  /* Positioning */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotateZ(0deg);
+  width: 24px;
+  height: 24px;
+  text-align: center;
+  color: var(--card-title-text-color);
+  
+  /* Animation properties */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+  will-change: transform;
+}
+
+/* Rotation for toggle button icon using pseudo-element */
+.card-collapsed .toggle-card-btn::after {
+  transform: translate(-50%, -50%) rotateZ(180deg);
+}
+
+.toggle-card-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Add animation to card shadow */
+.mdl-card {
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: height, box-shadow;
+}
+
+/* Reduce shadow when collapsed */
+.card-collapsed.mdl-card {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}

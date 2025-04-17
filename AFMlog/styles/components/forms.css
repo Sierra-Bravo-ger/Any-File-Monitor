@@ -1,0 +1,208 @@
+/* Form elements and inputs */
+
+/* Base form styles */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: var(--accent-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
+}
+
+/* Checkboxes and radio buttons */
+.checkbox-container,
+.radio-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.checkbox-input,
+.radio-input {
+  margin-right: 8px;
+}
+
+.checkbox-label,
+.radio-label {
+  cursor: pointer;
+}
+
+/* Custom checkbox styling */
+.custom-checkbox {
+  position: relative;
+  padding-left: 28px;
+  cursor: pointer;
+  user-select: none;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.custom-checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 18px;
+  width: 18px;
+  background-color: var(--card-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
+
+.custom-checkbox:hover input ~ .checkmark {
+  background-color: var(--hover-color);
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.custom-checkbox input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.custom-checkbox .checkmark:after {
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Error state */
+.form-input.error {
+  border-color: var(--error-color);
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Disabled state */
+.form-input:disabled,
+.checkbox-input:disabled,
+.radio-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.checkbox-label.disabled,
+.radio-label.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Date and time inputs */
+.date-input,
+.time-input {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  transition: border-color 0.2s ease;
+}
+
+.date-input:focus,
+.time-input:focus {
+  border-color: var(--accent-color);
+  outline: none;
+}
+
+/* Range slider (noUiSlider) overrides */
+.noUi-target {
+  border-radius: 4px;
+  border: none;
+  box-shadow: none;
+  background-color: var(--border-color);
+}
+
+.noUi-connect {
+  background-color: var(--accent-color);
+}
+
+.noUi-handle {
+  border: none;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.noUi-handle:before,
+.noUi-handle:after {
+  display: none;
+}
+
+.noUi-tooltip {
+  background-color: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 767px) {
+  .form-input,
+  .date-input,
+  .time-input {
+    height: 40px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+  
+  .custom-checkbox {
+    padding-left: 32px;
+  }
+  
+  .checkmark {
+    height: 22px;
+    width: 22px;
+  }
+  
+  .custom-checkbox .checkmark:after {
+    left: 8px;
+    top: 4px;
+    width: 6px;
+    height: 12px;
+  }
+}

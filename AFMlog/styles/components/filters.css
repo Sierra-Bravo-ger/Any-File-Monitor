@@ -1,0 +1,184 @@
+/* Filter styles */
+
+/* Filter buttons container */
+.filter-buttons-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Error type filter */
+.error-type-filter-container {
+  position: relative;
+  margin-right: 8px;
+}
+
+#error-type-filter-button {
+  z-index: var(--z-index-base); /* Ensure button stays above dropdown */
+}
+
+#error-type-filter-button.has-filter i {
+  color: var(--primary-color, #2196F3);
+}
+
+/* Quick filter */
+.quick-filter-dropdown-container {
+  position: relative;
+  margin-right: 8px;
+}
+
+#quick-filter-button {
+  z-index: var(--z-index-base); /* Ensure button stays above dropdown */
+}
+
+#quick-filter-button.active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] #quick-filter-button.active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.quick-filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.quick-filter-button {
+  margin: 4px;
+}
+
+/* Date filter */
+.date-range-slider-container {
+  background-color: var(--card-bg-color);
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.date-range-slider-title {
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.slider-container {
+  margin: 24px 0;
+}
+
+.slider-duration-tooltip {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--secondary-text-color);
+}
+
+.time-markers {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  position: relative;
+  height: 20px;
+}
+
+.time-marker {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--secondary-text-color);
+}
+
+.timeframe-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  position: relative;
+  min-height: 40px;
+}
+
+.timeframe-display {
+  text-align: center;
+}
+
+/* Date/time inputs */
+.filter-group {
+  margin: 16px 0;
+}
+
+.filter-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.date-time-input-group {
+  margin-bottom: 16px;
+}
+
+.date-time-row {
+  display: flex;
+  gap: 16px;
+}
+
+.date-time-flex-container {
+  display: flex;
+  align-items: center;
+}
+
+.date-input, .time-input {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+}
+
+.date-time-controls {
+  display: flex;
+  flex-direction: column;
+  margin-left: 4px;
+}
+
+/* Filter elements container */
+.filter-elements-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 767px) {
+  .date-time-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .filter-group {
+    margin: 8px 0 !important;
+    width: 100%;
+  }
+  
+  /* Make date/time inputs more touch-friendly */
+  .date-input, .time-input {
+    height: 40px;
+    font-size: 16px;
+    padding: 8px;
+  }
+  
+  /* Position date/time control buttons to the left of their corresponding input boxes on mobile devices */
+  .date-time-flex-container {
+    flex-direction: row-reverse;
+  }
+  
+  .date-time-controls {
+    margin-right: 4px;
+    margin-left: 0;
+  }
+  
+  .timeframe-navigation {
+    min-height: 50px; /* Ensure enough height for absolute positioning */
+  }
+}

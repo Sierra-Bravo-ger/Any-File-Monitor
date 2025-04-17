@@ -2,6 +2,7 @@
  * Health Gauge Widget Component
  * Handles the health score calculation and status indicators for the dashboard
  */
+import { calculateHealthScore, getErrorRateStatus, getThroughputStatus, calculateErrorRate, calculateThroughput } from '../../components/calculations/index.js';
 
 /**
  * Update the health widget with KPI data
@@ -18,11 +19,17 @@ export function updateHealthWidget(kpis, widgetA) {
   // Update health score
   widgetA.updateHealthScore(healthScore);
   
+  // Get data processing status (based on archive column activity)
+  const dataProcessingStatus = checkDataProcessingActivity(kpis.statusData);
+  
+  // Get data input status (based on input column threshold)
+  const dataInputStatus = checkDataInputThreshold(kpis.statusData);
+  
   // Update status indicators
   widgetA.updateStatus({
     fileProcessing: {
-      value: kpis.processingActive ? 'Aktiv' : 'Inaktiv',
-      status: kpis.processingActive ? 'ok' : 'warning'
+      value: dataProcessingStatus.active ? 'Aktiv' : 'Inaktiv',
+      status: dataProcessingStatus.status
     },
     errorRate: {
       value: `${kpis.errorRateValue.toFixed(1)}%`,
@@ -33,51 +40,36 @@ export function updateHealthWidget(kpis, widgetA) {
       status: getThroughputStatus(kpis.throughput)
     },
     connection: {
-      value: kpis.connected ? 'Verbunden' : 'Getrennt',
-      status: kpis.connected ? 'ok' : 'error'
+      value: dataInputStatus.overThreshold ? 'Überlastet' : 'Normal',
+      status: dataInputStatus.status
+    },
+    errorIntensity: {
+      value: `${kpis.errorIntensity || '0.0'}/h`,
+      status: getErrorIntensityStatus(parseFloat(kpis.errorIntensity || 0))
+    },
+    errorTrend: {
+      value: kpis.errorTrend || '0%',
+      status: getErrorTrendStatus(kpis.errorTrend)
     }
+    // archiveToErrorRatio removed as requested - already displayed in KPI card
   });
 }
 
-/**
- * Calculate health score based on KPIs
- * @param {Object} kpis - Key performance indicators
- * @returns {number} - Health score (0-100)
- */
-function calculateHealthScore(kpis) {
-  // Base score starts at 100
-  let score = 100;
-  
-  // Deduct for high error rate (up to -40)
-  score -= Math.min(40, kpis.errorRateValue * 8);
-  
-  // Deduct for low throughput (up to -30)
-  const throughputFactor = Math.max(0, 1 - (kpis.throughput / 100));
-  score -= throughputFactor * 30;
-  
-  // Deduct for connection issues (-20)
-  if (!kpis.connected) {
-    score -= 20;
-  }
-  
-  // Deduct for processing inactive (-10)
-  if (!kpis.processingActive) {
-    score -= 10;
-  }
-  
-  // Ensure score is between 0 and 100
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
+// calculateHealthScore has been moved to the kpiCalc.js module
+
+// getErrorRateStatus has been moved to the kpiCalc.js module
+
+// getThroughputStatus has been moved to the kpiCalc.js module
 
 /**
- * Get status for error rate
- * @param {number} errorRate - Error rate percentage
+ * Get status for error intensity
+ * @param {number} intensity - Error intensity (errors per hour)
  * @returns {string} - Status (ok, warning, error)
  */
-function getErrorRateStatus(errorRate) {
-  if (errorRate > 5) {
+function getErrorIntensityStatus(intensity) {
+  if (intensity > 20) {
     return 'error';
-  } else if (errorRate > 2) {
+  } else if (intensity > 10) {
     return 'warning';
   } else {
     return 'ok';
@@ -85,173 +77,154 @@ function getErrorRateStatus(errorRate) {
 }
 
 /**
- * Get status for throughput
- * @param {number} throughput - Throughput in files per hour
+ * Get status for error trend
+ * @param {string} trend - Error trend as percentage string (e.g., "+10.5%")
  * @returns {string} - Status (ok, warning, error)
  */
-function getThroughputStatus(throughput) {
-  if (throughput < 30) {
+function getErrorTrendStatus(trend) {
+  if (!trend) return 'ok';
+  
+  // Extract numeric value from trend string
+  const trendValue = parseFloat(trend.replace(/[+%]/g, ''));
+  
+  if (trendValue > 20) {
     return 'error';
-  } else if (throughput < 60) {
+  } else if (trendValue > 5) {
     return 'warning';
+  } else if (trendValue < -10) {
+    return 'ok'; // Significant improvement
   } else {
     return 'ok';
   }
 }
 
-/**
- * Calculate error rate based on status data
- * @param {Array} filteredStatusData - Filtered status data
- * @param {Array} filteredErrorData - Filtered error data
- * @returns {number} - Error rate as a percentage value
- */
-export function calculateErrorRate(filteredStatusData, filteredErrorData) {
-  // Check if enough data is available
-  if (filteredStatusData.length < 1) return 0;
-    
-  // Calculate the actual processed files during the time period
-  let processedFiles = 0;
-  let errorFiles = 0;
-  
-  if (filteredStatusData.length > 1) {
-    // Sort data by timestamp to ensure we're using the correct order
-    const sortedData = [...filteredStatusData].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
-    // Difference between beginning and end of the time period
-    const firstEntry = sortedData[0];
-    const lastEntry = sortedData[sortedData.length - 1];
-    
-    // Calculate the change in archive and error directories
-    // Try to use raw values first, then fall back to processed values
-    let archiveChange, errorChange;
-    
-    if (firstEntry.rawArchiv !== undefined && lastEntry.rawArchiv !== undefined) {
-      // Use raw values if available
-      archiveChange = parseInt(lastEntry.rawArchiv || '0') - parseInt(firstEntry.rawArchiv || '0');
-      errorChange = parseInt(lastEntry.rawError || '0') - parseInt(firstEntry.rawError || '0');
-    } else {
-      // Fall back to processed values
-      archiveChange = (lastEntry.throughput || 0) - (firstEntry.throughput || 0);
-      errorChange = (lastEntry.errorCount || 0) - (firstEntry.errorCount || 0);
-    }
-    
-    // The number of error files is the positive change in the error directory
-    errorFiles = Math.max(0, errorChange);
-    
-    // The sum of positive changes represents the processed files
-    processedFiles = Math.max(0, archiveChange) + errorFiles;
-    
-    console.log('Error rate calculation (multiple entries):', {
-      firstEntry,
-      lastEntry,
-      archiveChange,
-      errorChange,
-      errorFiles,
-      processedFiles
-    });
-  } else {
-    // Fallback for single data point
-    const singleEntry = filteredStatusData[0];
-    
-    if (singleEntry.rawArchiv !== undefined && singleEntry.rawError !== undefined) {
-      // Use raw values if available
-      processedFiles = parseInt(singleEntry.rawArchiv || '0') + parseInt(singleEntry.rawError || '0');
-      errorFiles = parseInt(singleEntry.rawError || '0');
-    } else {
-      // Fall back to processed values
-      processedFiles = (singleEntry.throughput || 0) + (singleEntry.errorCount || 0);
-      errorFiles = singleEntry.errorCount || 0;
-    }
-    
-    console.log('Error rate calculation (single entry):', {
-      singleEntry,
-      processedFiles,
-      errorFiles
-    });
-  }
-  
-  // For periods where only error files were processed
-  const errorCount = filteredErrorData.length;
-  
-  // If no change or negative change (e.g., due to file deletions), use the error count
-  if (processedFiles === 0) {
-    processedFiles = errorCount > 0 ? errorCount : 1; // Avoid division by zero
-    errorFiles = errorCount;
-    
-    console.log('Error rate calculation (using error count):', {
-      errorCount,
-      processedFiles,
-      errorFiles
-    });
-  }
-  
-  // If all processed files are errors and the number of errors matches errorFiles,
-  // then we have a 100% error rate
-  if (processedFiles > 0 && processedFiles === errorFiles) {
-    console.log('Error rate calculation: 100% error rate detected');
-    return 100;
-  }
-  
-  // Calculate error rate as a percentage
-  const errorRateValue = (errorCount / processedFiles) * 100;
-  console.log('Final error rate calculation:', {
-    errorCount,
-    processedFiles,
-    errorRateValue
-  });
-  
-  return errorRateValue;
-}
+// calculateErrorRate has been moved to the kpiCalc.js module
+
+// calculateThroughput has been moved to the kpiCalc.js module
 
 /**
- * Calculate throughput as difference between the last two measurements
+ * Check if data processing is active based on archive column activity
  * @param {Array} statusData - Status data array
- * @returns {number} - Throughput per hour
+ * @returns {Object} - Object with active status and status code
  */
-export function calculateThroughput(statusData) {
-  if (statusData.length < 2) {
-    return 0;
+function checkDataProcessingActivity(statusData) {
+  if (!statusData || statusData.length < 2) {
+    return { active: false, status: 'warning' };
   }
   
-  // Sort data by timestamp to ensure we're using the correct order
-  const sortedData = [...statusData].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  
-  // Last and second-to-last entry
-  const lastEntry = sortedData[sortedData.length - 1];
-  const prevEntry = sortedData[sortedData.length - 2];
-  
-  // Sum of processed files (Archive + Error) for each measurement
-  // Try to access both raw and processed values
-  let lastProcessed, prevProcessed;
-  
-  if (lastEntry.rawArchiv !== undefined && lastEntry.rawError !== undefined) {
-    // Use raw values if available
-    lastProcessed = parseInt(lastEntry.rawArchiv || '0') + parseInt(lastEntry.rawError || '0');
-    prevProcessed = parseInt(prevEntry.rawArchiv || '0') + parseInt(prevEntry.rawError || '0');
-  } else {
-    // Fall back to processed values
-    lastProcessed = (lastEntry.throughput || 0) + (lastEntry.errorCount || 0);
-    prevProcessed = (prevEntry.throughput || 0) + (prevEntry.errorCount || 0);
+  try {
+    // Sort by timestamp to ensure we're comparing the right values
+    const sortedData = [...statusData].sort((a, b) => {
+      const dateA = parseTimestamp(a.timestamp);
+      const dateB = parseTimestamp(b.timestamp);
+      return dateA - dateB;
+    });
+    
+    // Get the latest entry
+    const latestEntry = sortedData[sortedData.length - 1];
+    const latestTime = parseTimestamp(latestEntry.timestamp);
+    const now = new Date();
+    
+    // Check if archive column (throughput) has increased in the last 60 minutes
+    let archiveIncreased = false;
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000); // 60 minutes ago
+    
+    // Find the entry closest to one hour ago
+    let comparisonEntry = null;
+    for (let i = sortedData.length - 1; i >= 0; i--) {
+      const entryTime = parseTimestamp(sortedData[i].timestamp);
+      if (entryTime <= oneHourAgo) {
+        comparisonEntry = sortedData[i];
+        break;
+      }
+    }
+    
+    // If we don't have an entry from an hour ago, use the oldest available
+    if (!comparisonEntry && sortedData.length > 0) {
+      comparisonEntry = sortedData[0];
+    }
+    
+    if (comparisonEntry) {
+      // Check if archive column (throughput) has increased
+      archiveIncreased = latestEntry.throughput > comparisonEntry.throughput;
+    }
+    
+    // Check if the latest entry is recent (within the last hour)
+    const isRecent = (now - latestTime) < (60 * 60 * 1000);
+    
+    if (!isRecent) {
+      // No recent data, considered inactive
+      return { active: false, status: 'error' };
+    }
+    
+    if (archiveIncreased) {
+      // Archive has increased, processing is active
+      return { active: true, status: 'ok' };
+    } else {
+      // Archive hasn't increased, processing is inactive
+      return { active: false, status: 'error' };
+    }
+  } catch (error) {
+    console.error('Error checking data processing activity:', error);
+    return { active: false, status: 'error' };
+  }
+}
+
+/**
+ * Check if data input is over threshold
+ * @param {Array} statusData - Status data array
+ * @returns {Object} - Object with threshold status and status code
+ */
+function checkDataInputThreshold(statusData) {
+  if (!statusData || statusData.length === 0) {
+    return { overThreshold: false, status: 'ok' };
   }
   
-  // Difference = Number of newly processed files
-  const processedDifference = lastProcessed - prevProcessed;
-  
-  // Calculate time difference in hours
-  const lastTime = new Date(lastEntry.timestamp);
-  const prevTime = new Date(prevEntry.timestamp);
-  const hoursDiff = (lastTime - prevTime) / (1000 * 60 * 60); // Convert milliseconds to hours
-  
-  // Throughput per hour (extrapolated if the interval is shorter than an hour)
-  const throughputPerHour = hoursDiff > 0 ? Math.round(processedDifference / hoursDiff) : 0;
-  
-  console.log('Calculated throughput:', {
-    lastProcessed,
-    prevProcessed,
-    processedDifference,
-    hoursDiff,
-    throughputPerHour
-  });
-  
-  return throughputPerHour;
+  try {
+    // Sort by timestamp to ensure we're getting the latest entry
+    const sortedData = [...statusData].sort((a, b) => {
+      const dateA = parseTimestamp(a.timestamp);
+      const dateB = parseTimestamp(b.timestamp);
+      return dateA - dateB;
+    });
+    
+    // Get the latest entry
+    const latestEntry = sortedData[sortedData.length - 1];
+    
+    // Check if input column (filesProcessed) is >= 50
+    const inputCount = latestEntry.filesProcessed;
+    const isOverThreshold = inputCount >= 50;
+    
+    return {
+      overThreshold: isOverThreshold,
+      status: isOverThreshold ? 'error' : 'ok'
+    };
+  } catch (error) {
+    console.error('Error checking data input threshold:', error);
+    return { overThreshold: false, status: 'warning' };
+  }
+}
+
+/**
+ * Parse timestamp string into Date object
+ * @param {string} timestamp - Timestamp string
+ * @returns {Date} - Date object
+ */
+function parseTimestamp(timestamp) {
+  try {
+    // Handle different timestamp formats
+    if (timestamp.includes(' ')) {
+      // Format: "2023-04-10 15:30:00"
+      const [datePart, timePart] = timestamp.split(' ');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes, seconds] = timePart.split(':').map(Number);
+      return new Date(year, month - 1, day, hours, minutes, seconds);
+    } else {
+      // Try standard ISO format
+      return new Date(timestamp);
+    }
+  } catch (error) {
+    console.error('Error parsing timestamp:', error, timestamp);
+    return new Date();
+  }
 }

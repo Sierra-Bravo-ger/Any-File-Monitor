@@ -1,0 +1,73 @@
+/* Typography styles */
+body {
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-color);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 500;
+  margin-bottom: 0.5em;
+  color: var(--text-color);
+}
+
+h1 {
+  font-size: 24px;
+}
+
+h2 {
+  font-size: 20px;
+}
+
+h3 {
+  font-size: 18px;
+}
+
+h4 {
+  font-size: 16px;
+}
+
+p {
+  margin-bottom: 1em;
+}
+
+.mdl-card__title-text {
+  color: var(--card-title-text-color);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.secondary-text {
+  color: var(--secondary-text-color);
+  font-size: 12px;
+}
+
+.error-text {
+  color: var(--error-color);
+}
+
+.warning-text {
+  color: var(--warning-color);
+}
+
+.success-text {
+  color: var(--success-color);
+}
+
+/* Status text styles */
+.status-value {
+  font-weight: 500;
+}
+
+.status-label {
+  color: var(--secondary-text-color);
+}
+
+/* No data message */
+.no-data {
+  text-align: center;
+  padding: 20px;
+  color: var(--secondary-text-color);
+  font-style: italic;
+}

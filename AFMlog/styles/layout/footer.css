@@ -1,0 +1,100 @@
+/* Footer styles */
+.footer {
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  padding: 16px;
+  margin-top: 32px;
+  border-top: 1px solid var(--border-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer-logo {
+  height: 32px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 16px;
+}
+
+.footer-link {
+  color: var(--accent-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--text-color);
+  text-decoration: underline;
+}
+
+.footer-copyright {
+  font-size: 12px;
+  color: var(--secondary-text-color);
+}
+
+/* Footer action buttons */
+.footer-buttons {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.footer-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.footer-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+.footer-button i {
+  font-size: 24px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .footer-content {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .footer-links {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .footer-buttons {
+    bottom: 16px;
+    right: 16px;
+  }
+  
+  .footer-button {
+    width: 48px;
+    height: 48px;
+  }
+}

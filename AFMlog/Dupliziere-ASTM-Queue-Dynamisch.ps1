@@ -1,6 +1,6 @@
 param (
-    [int]$Start = 58001,
-    [int]$End = 68000
+    [int]$Start = 88001,
+    [int]$End = 98000
 )
 
 $sourceFile = "ASTM_TestBlock.ext"

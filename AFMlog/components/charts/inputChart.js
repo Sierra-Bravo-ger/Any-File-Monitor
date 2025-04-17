@@ -25,6 +25,43 @@ export function createInputChart(filteredStatusData, getAggregationInterval) {
   // Get appropriate aggregation settings based on the timeframe
   const aggregation = getAggregationInterval(startDate, endDate);
   
+  // Calculate the exact timeframe duration
+  const diffMs = endDate.getTime() - startDate.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const diffHours = diffMs / (1000 * 60 * 60);
+  
+  // Only force hourly aggregation when the timeframe is close to exactly 1 day
+  // This preserves sub-hour timeframes for shorter ranges
+  if (diffDays > 0.95 && diffDays <= 1.1) {
+    console.log('Forcing hourly aggregation for input chart (~1-day timeframe)');
+    aggregation.interval = 'hour';
+    aggregation.roundFn = (date) => {
+      const rounded = new Date(date);
+      rounded.setMinutes(0, 0, 0);
+      return rounded;
+    };
+    aggregation.format = (date) => {
+      return date.getHours() + ':00';
+    };
+  }
+  // Add a 5-minute-level aggregation for short timeframes (less than 6 hours)
+  else if (diffHours < 6 && diffMs > 0) {
+    console.log('Using 5-minute-level aggregation for input chart (short timeframe)');
+    aggregation.interval = '5min';
+    aggregation.roundFn = (date) => {
+      const rounded = new Date(date);
+      const minutes = rounded.getMinutes();
+      // Round to the nearest 5 minutes
+      rounded.setMinutes(Math.floor(minutes / 5) * 5, 0, 0);
+      return rounded;
+    };
+    aggregation.format = (date) => {
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    };
+  }
+  
   // Group data by interval
   const intervalMap = {};
   
@@ -59,6 +96,40 @@ export function createInputChart(filteredStatusData, getAggregationInterval) {
   const labels = sortedKeys.map(key => intervalMap[key].displayLabel);
   const data = sortedKeys.map(key => intervalMap[key].count);
   
+  // Calculate safe max value for axis scaling
+  const maxValue = data.length > 0 ? Math.max(...data.filter(val => !isNaN(val))) : 0;
+  const suggestedMax = maxValue > 0 ? maxValue * 1.1 : 10;
+  
+  // Define common chart options to ensure consistency
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 500,
+      easing: 'easeOutQuad'
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        suggestedMax: suggestedMax,
+        grace: '5%',
+        ticks: {
+          precision: 0
+        },
+        title: {
+          display: true,
+          text: 'Verarbeitete Dateien'
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top'
+      }
+    }
+  };
+  
   // Create or update chart
   try {
     // Check if the chart instance exists and is valid
@@ -66,7 +137,24 @@ export function createInputChart(filteredStatusData, getAggregationInterval) {
       // Update existing chart
       window.inputChart.data.labels = labels;
       window.inputChart.data.datasets[0].data = data;
-      window.inputChart.update();
+      
+      // Force y-axis recalculation based on new data
+      window.inputChart.options.scales.y.suggestedMax = suggestedMax;
+      
+      // Force a complete redraw with animation
+      window.inputChart.update({
+        duration: 300,
+        easing: 'easeOutQuad',
+        reset: false // Don't reset animations in progress
+      });
+      
+      console.log('Updated input chart with new axis settings:', {
+        labels: labels.length,
+        dataPoints: data.length,
+        maxValue,
+        suggestedMax
+      });
+      
       return window.inputChart;
     } else {
       // If chart exists but is in an invalid state, clean up the canvas
@@ -85,68 +173,74 @@ export function createInputChart(filteredStatusData, getAggregationInterval) {
         }
       }
       
-      // Create new chart
-      window.inputChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Verarbeitete Dateien',
-            data: data,
-            backgroundColor: 'rgba(33, 150, 243, 0.2)',
-            borderColor: 'rgba(33, 150, 243, 1)',
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                precision: 0
-              }
-            }
-          }
+      // Create new chart with a slight delay to ensure DOM is ready
+      setTimeout(() => {
+        window.inputChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Verarbeitete Dateien',
+              data: data,
+              backgroundColor: 'rgba(33, 150, 243, 0.2)',
+              borderColor: 'rgba(33, 150, 243, 1)',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: chartOptions
+        });
+        
+        // Force an immediate update to ensure axes are properly initialized
+        if (window.inputChart) {
+          window.inputChart.update();
         }
-      });
+        
+        console.log('Created new input chart with axis settings:', {
+          labels: labels.length,
+          dataPoints: data.length,
+          maxValue,
+          suggestedMax
+        });
+      }, 50);
       
-      return window.inputChart;
+      // Return a placeholder until the real chart is created
+      return {};
     }
   } catch (error) {
     console.warn('Error handling existing chart:', error);
+    window.inputChart = null;
     
-    // Create new chart as fallback
-    window.inputChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Verarbeitete Dateien',
-          data: data,
-          backgroundColor: 'rgba(33, 150, 243, 0.2)',
-          borderColor: 'rgba(33, 150, 243, 1)',
-          borderWidth: 2,
-          tension: 0.3,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              precision: 0
-            }
-          }
+    // Create new chart as fallback with a slight delay
+    setTimeout(() => {
+      try {
+        window.inputChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Verarbeitete Dateien',
+              data: data,
+              backgroundColor: 'rgba(33, 150, 243, 0.2)',
+              borderColor: 'rgba(33, 150, 243, 1)',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: chartOptions
+        });
+        
+        // Force an immediate update to ensure axes are properly initialized
+        if (window.inputChart) {
+          window.inputChart.update();
         }
+      } catch (innerError) {
+        console.error('Failed to create fallback chart:', innerError);
       }
-    });
-    return window.inputChart;
+    }, 50);
+    
+    return {};
   }
 }
